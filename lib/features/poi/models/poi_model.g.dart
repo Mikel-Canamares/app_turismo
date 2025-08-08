@@ -8,28 +8,32 @@ part of 'poi_model.dart';
 
 PointOfInterest _$PointOfInterestFromJson(Map<String, dynamic> json) =>
     PointOfInterest(
+      id: json['id'] as String,
       xid: json['xid'] as String,
       name: json['name'] as String,
-      kinds: json['kinds'] as String,
-      point: PoiPoint.fromJson(json['point'] as Map<String, dynamic>),
-      distance: (json['distance'] as num?)?.toInt(),
-      rate: (json['rate'] as num?)?.toInt(),
-      preview: json['preview'] as String?,
-      wikipedia: json['wikipedia'] as String?,
-      description: json['description'] as String?,
+      latitude: (json['latitude'] as num).toDouble(),
+      longitude: (json['longitude'] as num).toDouble(),
+      category: json['category'] as String,
+      description: json['description'] as String,
+      address: json['address'] as String,
+      distance: (json['distance'] as num).toDouble(),
+      rating: (json['rating'] as num).toDouble(),
+      imageUrl: json['imageUrl'] as String,
     );
 
 Map<String, dynamic> _$PointOfInterestToJson(PointOfInterest instance) =>
     <String, dynamic>{
+      'id': instance.id,
       'xid': instance.xid,
       'name': instance.name,
-      'kinds': instance.kinds,
-      'point': instance.point,
-      'distance': instance.distance,
-      'rate': instance.rate,
-      'preview': instance.preview,
-      'wikipedia': instance.wikipedia,
+      'latitude': instance.latitude,
+      'longitude': instance.longitude,
+      'category': instance.category,
       'description': instance.description,
+      'address': instance.address,
+      'distance': instance.distance,
+      'rating': instance.rating,
+      'imageUrl': instance.imageUrl,
     };
 
 PoiPoint _$PoiPointFromJson(Map<String, dynamic> json) => PoiPoint(

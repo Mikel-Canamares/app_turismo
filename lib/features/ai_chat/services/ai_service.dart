@@ -1,202 +1,264 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import '../../../core/utils/constants.dart';
-
-enum AIProvider {
-  openai,
-  anthropic,
-}
+import '../../poi/models/poi_model.dart';
+import 'package:geolocator/geolocator.dart';
 
 class AIService {
   static final AIService _instance = AIService._internal();
   factory AIService() => _instance;
   AIService._internal();
 
-  String get _openAIKey => dotenv.env['OPENAI_API_KEY'] ?? '';
-  String get _anthropicKey => dotenv.env['ANTHROPIC_API_KEY'] ?? '';
+  late final String _openaiApiKey;
+  final String _openaiBaseUrl = 'https://api.openai.com/v1';
+  final String _model = 'gpt-3.5-turbo';
 
-  Future<String?> generateResponse({
-    required String userMessage,
-    required String context,
-    AIProvider provider = AIProvider.openai,
+  /// Inicializa el servicio con la API key
+  void initialize() {
+    _openaiApiKey = dotenv.env['OPENAI_API_KEY'] ?? '';
+    if (_openaiApiKey.isEmpty) {
+      print('⚠️ ADVERTENCIA: API key de OpenAI no encontrada en .env');
+    } else {
+      print('✅ AI Service inicializado con API key');
+    }
+  }
+
+  /// Genera mensaje de bienvenida personalizado basado en la ubicación
+  Future<String> generateWelcomeMessage({
+    Position? position,
+    PointOfInterest? nearbyPOI,
   }) async {
     try {
-      switch (provider) {
-        case AIProvider.openai:
-          return await _generateOpenAIResponse(userMessage, context);
-        case AIProvider.anthropic:
-          return await _generateAnthropicResponse(userMessage, context);
+      String locationContext = '';
+      
+      if (position != null) {
+        locationContext = 'El usuario está en las coordenadas ${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}';
+        
+        if (nearbyPOI != null) {
+          locationContext += ' y cerca hay ${nearbyPOI.detailedDescription}';
+        }
       }
+
+      final prompt = '''
+Eres un asistente turístico inteligente y amigable llamado "Turismo AI". 
+Tu trabajo es ayudar a las personas a descubrir lugares interesantes y responder preguntas sobre turismo.
+
+$locationContext
+
+Genera un mensaje de bienvenida cálido, breve (máximo 3 frases) y personalizado. 
+- Saluda al usuario
+- Menciona que estás aquí para ayudarle con información turística
+- Si hay un lugar cercano interesante, menciónalo brevemente
+- Invítalo a hacer preguntas por voz
+
+Habla de manera natural y conversacional en español.
+''';
+
+      final response = await _sendToOpenAI(prompt);
+      
+      if (response.isNotEmpty) {
+        print('✅ Mensaje de bienvenida generado');
+        return response;
+      } else {
+        return _getFallbackWelcomeMessage(nearbyPOI);
+      }
+      
     } catch (e) {
-      print('Error generando respuesta de IA: $e');
-      return _getFallbackResponse(userMessage);
+      print('❌ Error generando mensaje de bienvenida: $e');
+      return _getFallbackWelcomeMessage(nearbyPOI);
     }
   }
 
-  Future<String?> _generateOpenAIResponse(String userMessage, String context) async {
-    if (_openAIKey.isEmpty) {
-      print('API Key de OpenAI no configurada');
-      return _getFallbackResponse(userMessage);
-    }
-
+  /// Genera respuesta turística basada en pregunta del usuario y contexto
+  Future<String> generateTourismResponse({
+    required String userQuestion,
+    Position? userPosition,
+    PointOfInterest? contextPOI,
+    List<PointOfInterest>? nearbyPOIs,
+  }) async {
     try {
-      final systemPrompt = _buildSystemPrompt(context);
-      
-      final url = Uri.parse('${AppConstants.openAiBaseUrl}/chat/completions');
-      
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $_openAIKey',
-        },
-        body: json.encode({
-          'model': 'gpt-3.5-turbo',
-          'messages': [
-            {'role': 'system', 'content': systemPrompt},
-            {'role': 'user', 'content': userMessage}
-          ],
-          'max_tokens': 200,
-          'temperature': 0.7,
-        }),
+      if (_openaiApiKey.isEmpty) {
+        return _getFallbackTourismResponse(userQuestion, contextPOI);
+      }
+
+      // Construir contexto geográfico y turístico
+      final context = _buildTourismContext(
+        userPosition: userPosition,
+        contextPOI: contextPOI,
+        nearbyPOIs: nearbyPOIs,
       );
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final content = data['choices'][0]['message']['content'];
-        return content?.toString().trim();
-      } else {
-        print('Error OpenAI API: ${response.statusCode}');
-        print('Respuesta: ${response.body}');
-        return _getFallbackResponse(userMessage);
-      }
-    } catch (e) {
-      print('Error en OpenAI: $e');
-      return _getFallbackResponse(userMessage);
-    }
-  }
-
-  Future<String?> _generateAnthropicResponse(String userMessage, String context) async {
-    if (_anthropicKey.isEmpty) {
-      print('API Key de Anthropic no configurada');
-      return _getFallbackResponse(userMessage);
-    }
-
-    try {
-      final systemPrompt = _buildSystemPrompt(context);
-      
-      final url = Uri.parse('${AppConstants.anthropicBaseUrl}/v1/messages');
-      
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': _anthropicKey,
-          'anthropic-version': '2023-06-01',
-        },
-        body: json.encode({
-          'model': 'claude-3-haiku-20240307',
-          'max_tokens': 200,
-          'system': systemPrompt,
-          'messages': [
-            {'role': 'user', 'content': userMessage}
-          ],
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final content = data['content'][0]['text'];
-        return content?.toString().trim();
-      } else {
-        print('Error Anthropic API: ${response.statusCode}');
-        print('Respuesta: ${response.body}');
-        return _getFallbackResponse(userMessage);
-      }
-    } catch (e) {
-      print('Error en Anthropic: $e');
-      return _getFallbackResponse(userMessage);
-    }
-  }
-
-  String _buildSystemPrompt(String context) {
-    return '''
-Eres un asistente turístico amigable y conocedor que ayuda a los usuarios a descubrir lugares interesantes.
+      final prompt = '''
+Eres un asistente turístico experto y entusiasta llamado "Turismo AI".
+Tu personalidad es amigable, informativa y apasionada por el turismo.
 
 CONTEXTO ACTUAL:
 $context
 
+PREGUNTA DEL USUARIO: "$userQuestion"
+
 INSTRUCCIONES:
-- Responde en español de forma natural y conversacional
-- Sé entusiasta y descriptivo sobre los lugares
-- Mantén las respuestas entre 1-3 frases
-- Si no tienes información específica, sé honesto pero positivo
-- Incluye datos interesantes, historia o curiosidades cuando sea relevante
-- Invita al usuario a hacer más preguntas
-- Adapta tu tono para ser cálido y acogedor
+1. Responde de manera conversacional y natural en español
+2. Si la pregunta está relacionada con el lugar cercano, proporciona información detallada
+3. Si pregunta sobre otros lugares, da información útil y sugiere lugares cercanos
+4. Incluye datos interesantes, historia, recomendaciones prácticas
+5. Mantén un tono entusiasta pero informativo
+6. Si no tienes información específica, sé honesto pero sugiere alternativas
+7. Limita tu respuesta a máximo 4-5 frases para que sea conversacional
+8. Termina invitando a hacer más preguntas si es apropiado
 
-EJEMPLOS DE RESPUESTAS:
-- "¡Qué lugar tan fascinante! La [nombre] es conocida por [dato interesante]. ¿Te gustaría saber más sobre su historia?"
-- "Estás cerca de un sitio increíble. [Descripción breve y emocionante]. ¿Hay algo específico que te interese saber?"
+Responde como si fueras un guía turístico local experimentado hablando en persona.
 ''';
+
+      final response = await _sendToOpenAI(prompt);
+      
+      if (response.isNotEmpty) {
+        print('✅ Respuesta turística generada');
+        return response;
+      } else {
+        return _getFallbackTourismResponse(userQuestion, contextPOI);
+      }
+      
+    } catch (e) {
+      print('❌ Error generando respuesta turística: $e');
+      return _getFallbackTourismResponse(userQuestion, contextPOI);
+    }
   }
 
-  String _getFallbackResponse(String userMessage) {
-    // Respuestas inteligentes basadas en patrones de preguntas
-    final message = userMessage.toLowerCase();
-    
-    if (message.contains('historia') || message.contains('histórico')) {
-      return 'Este lugar tiene una rica historia que se remonta a varios siglos. ¿Te gustaría saber sobre algún período específico?';
+  /// Genera respuesta general de IA
+  Future<String> generateResponse(String prompt) async {
+    try {
+      if (_openaiApiKey.isEmpty) {
+        print('❌ No se puede generar respuesta: API key no configurada');
+        return 'Lo siento, no puedo procesar tu solicitud en este momento. Por favor, verifica la configuración.';
+      }
+
+      return await _sendToOpenAI(prompt);
+      
+    } catch (e) {
+      print('❌ Error generando respuesta: $e');
+      return 'Lo siento, ocurrió un error al procesar tu solicitud. ¿Podrías intentar de nuevo?';
     }
-    
-    if (message.contains('cómo llegar') || message.contains('llegar')) {
-      return 'Te encuentras muy cerca del lugar. Puedes llegar caminando fácilmente. ¿Necesitas direcciones más específicas?';
-    }
-    
-    if (message.contains('horario') || message.contains('abierto')) {
-      return 'Te recomiendo verificar los horarios actuales ya que pueden variar por temporada. ¿Hay algo más que te interese saber del lugar?';
-    }
-    
-    if (message.contains('precio') || message.contains('entrada') || message.contains('cuesta')) {
-      return 'Los precios pueden variar. Te sugiero consultar información actualizada. ¿Te interesa conocer qué más puedes hacer en la zona?';
-    }
-    
-    if (message.contains('qué ver') || message.contains('qué hacer') || message.contains('visitar')) {
-      return 'Hay muchas cosas interesantes que ver en esta zona. Desde arquitectura histórica hasta espacios culturales únicos. ¿Hay algún tipo de lugar que te interese más?';
-    }
-    
-    return 'Es un lugar realmente interesante con mucho que ofrecer. ¿Hay algo específico que te gustaría saber sobre él?';
   }
 
-  // Método para generar respuesta de bienvenida con contexto de POI
-  Future<String> generateWelcomeMessage(String? poiContext) async {
-    if (poiContext == null || poiContext.isEmpty) {
-      return AppConstants.welcomeMessage;
+  /// Envía prompt a OpenAI y obtiene respuesta
+  Future<String> _sendToOpenAI(String prompt) async {
+    try {
+      final uri = Uri.parse('$_openaiBaseUrl/chat/completions');
+      
+      final headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $_openaiApiKey',
+      };
+
+      final body = json.encode({
+        'model': _model,
+        'messages': [
+          {
+            'role': 'user',
+            'content': prompt,
+          }
+        ],
+        'max_tokens': 300,
+        'temperature': 0.7,
+        'top_p': 1.0,
+        'frequency_penalty': 0.0,
+        'presence_penalty': 0.0,
+      });
+
+      print('🤖 Enviando consulta a OpenAI...');
+      
+      final response = await http.post(
+        uri,
+        headers: headers,
+        body: body,
+      ).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw Exception('Timeout en consulta a OpenAI');
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final jsonResponse = json.decode(response.body);
+        final choices = jsonResponse['choices'] as List;
+        
+        if (choices.isNotEmpty) {
+          final content = choices[0]['message']['content'] as String;
+          print('✅ Respuesta recibida de OpenAI');
+          return content.trim();
+        } else {
+          throw Exception('Respuesta vacía de OpenAI');
+        }
+      } else {
+        print('❌ Error de OpenAI: ${response.statusCode} - ${response.body}');
+        throw Exception('Error de OpenAI: ${response.statusCode}');
+      }
+      
+    } catch (e) {
+      print('❌ Error en comunicación con OpenAI: $e');
+      rethrow;
     }
-
-    final response = await generateResponse(
-      userMessage: '¿Qué me puedes decir sobre este lugar?',
-      context: poiContext,
-    );
-
-    return response ?? AppConstants.welcomeMessage;
   }
 
-  // Método para respuestas específicas de turismo
-  Future<String?> generateTourismResponse({
-    required String question,
-    required String locationContext,
-    String? poiDetails,
-  }) async {
-    String fullContext = locationContext;
-    if (poiDetails != null) {
-      fullContext += '\n\nDetalles adicionales: $poiDetails';
+  /// Construye contexto turístico para la IA
+  String _buildTourismContext({
+    Position? userPosition,
+    PointOfInterest? contextPOI,
+    List<PointOfInterest>? nearbyPOIs,
+  }) {
+    final context = StringBuffer();
+    
+    if (userPosition != null) {
+      context.writeln('Ubicación del usuario: ${userPosition.latitude.toStringAsFixed(6)}, ${userPosition.longitude.toStringAsFixed(6)}');
     }
 
-    return await generateResponse(
-      userMessage: question,
-      context: fullContext,
-    );
+    if (contextPOI != null) {
+      context.writeln('Lugar principal cercano:');
+      context.writeln('- Nombre: ${contextPOI.name}');
+      context.writeln('- Tipo: ${contextPOI.typeInSpanish}');
+      context.writeln('- Distancia: ${contextPOI.distance < 1000 ? "${contextPOI.distance.toStringAsFixed(0)}m" : "${(contextPOI.distance/1000).toStringAsFixed(1)}km"}');
+      
+      if (contextPOI.description.isNotEmpty) {
+        context.writeln('- Descripción: ${contextPOI.description}');
+      }
+      
+      if (contextPOI.address.isNotEmpty) {
+        context.writeln('- Dirección: ${contextPOI.address}');
+      }
+    }
+
+    if (nearbyPOIs != null && nearbyPOIs.isNotEmpty) {
+      context.writeln('Otros lugares cercanos:');
+      for (int i = 0; i < nearbyPOIs.length && i < 3; i++) {
+        final poi = nearbyPOIs[i];
+        context.writeln('- ${poi.name} (${poi.typeInSpanish}) a ${poi.distance < 1000 ? "${poi.distance.toStringAsFixed(0)}m" : "${(poi.distance/1000).toStringAsFixed(1)}km"}');
+      }
+    }
+
+    return context.toString();
+  }
+
+  /// Mensaje de bienvenida de respaldo
+  String _getFallbackWelcomeMessage(PointOfInterest? nearbyPOI) {
+    if (nearbyPOI != null) {
+      return '¡Hola! Soy tu asistente turístico. Veo que estás cerca de ${nearbyPOI.name}. ¿Te gustaría saber más sobre este lugar o hay algo específico que te interese conocer? Puedes preguntarme por voz.';
+    } else {
+      return '¡Hola! Soy tu asistente turístico personal. Estoy aquí para ayudarte a descubrir lugares interesantes y responder tus preguntas sobre turismo. ¿Qué te gustaría saber?';
+    }
+  }
+
+  /// Respuesta turística de respaldo
+  String _getFallbackTourismResponse(String question, PointOfInterest? contextPOI) {
+    if (contextPOI != null) {
+      return 'Te encuentras cerca de ${contextPOI.detailedDescription}. Aunque no tengo información adicional en este momento, te recomiendo explorar la zona. ¿Hay algo específico que te gustaría saber sobre este lugar?';
+    } else {
+      return 'Es una pregunta interesante sobre "$question". Aunque no tengo información específica disponible ahora mismo, te sugiero explorar los alrededores para descubrir lugares interesantes. ¿Puedo ayudarte con algo más?';
+    }
+  }
+
+  /// Verifica si el servicio está disponible
+  bool isAvailable() {
+    return _openaiApiKey.isNotEmpty;
   }
 }

@@ -18,6 +18,14 @@ dependencies:
   geolocator: ^11.0.0
   permission_handler: ^11.3.0
   
+  # Speech y TTS - Temporalmente deshabilitados por problemas de compilación
+  # speech_to_text: ^6.6.0
+  # flutter_tts: ^4.0.2
+  
+  # Mapas
+  flutter_map: ^6.1.0
+  latlong2: ^0.9.1
+  
   # HTTP y configuración
   http: ^1.2.1
   flutter_dotenv: ^5.1.0
