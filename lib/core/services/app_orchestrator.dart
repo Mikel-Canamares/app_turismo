@@ -286,32 +286,27 @@ class AppOrchestrator {
     }
   }
 
-  /// Escucha entrada del usuario
+  /// Escucha entrada del usuario (con fallback a entrada de texto)
   Future<void> _listenForUserInput() async {
     try {
       _updateState(AppState.listening);
-      _updateStatus('Escuchando... Habla ahora');
+      _updateStatus('Escuchando... Habla ahora o usa entrada de texto');
       
       print('👂 Escuchando entrada del usuario...');
-      print('🔍 Estado SpeechService - Inicializado: ${_speechService.isInitialized}, Disponible: ${_speechService.isAvailable}, Escuchando: ${_speechService.isListening}');
       
-      // Verificar permisos antes de escuchar
+      // Verificar permisos
       final hasPermission = await _speechService.hasPermission;
-      print('🔐 Permiso de micrófono: $hasPermission');
-      
       if (!hasPermission) {
-        print('❌ Sin permiso de micrófono, solicitando...');
         final granted = await _speechService.requestPermission();
         if (!granted) {
-          print('❌ Permiso de micrófono denegado');
-          _updateStatus('Permiso de micrófono requerido para funcionar');
-          _updateState(AppState.error);
+          print('⚠️ Sin permisos de micrófono, usando entrada de texto');
+          _triggerTextInput();
           return;
         }
       }
       
       final userInput = await _speechService.startListening(
-        listenFor: const Duration(seconds: 10),
+        listenFor: const Duration(seconds: 8),
         pauseFor: const Duration(seconds: 3),
         localeId: 'es-ES',
       );
@@ -319,7 +314,7 @@ class AppOrchestrator {
       if (userInput != null && userInput.trim().isNotEmpty) {
         print('📝 Usuario dijo: "$userInput"');
         
-        // Verificar comandos de control de conversación
+        // Verificar comandos de control
         if (_isStopCommand(userInput)) {
           await stopConversation();
           return;
@@ -327,7 +322,7 @@ class AppOrchestrator {
         
         await _processUserInput(userInput);
       } else {
-        print('⚠️ No se detectó entrada del usuario');
+        print('⚠️ No se detectó entrada de voz');
         
         if (_isInConversation) {
           _updateState(AppState.conversationActive);
@@ -335,20 +330,38 @@ class AppOrchestrator {
           await _continueConversation();
         } else {
           _updateState(AppState.ready);
-          _updateStatus('No escuché nada. Pulsa el micrófono para intentar de nuevo');
+          _updateStatus('Listo. Pulsa el micrófono para otra pregunta');
         }
       }
       
     } catch (e) {
-      print('❌ Error escuchando usuario: $e');
-      
-      if (_isInConversation) {
-        _updateState(AppState.conversationActive);
-        await _continueConversation();
-      } else {
-        _updateState(AppState.ready);
-      }
+      print('❌ Error en entrada de voz: $e');
+      _triggerTextInput();
     }
+  }
+  
+  /// Callback para entrada de texto (se llamará desde la UI)
+  Function(String)? onTextInputRequested;
+  
+  void _triggerTextInput() {
+    _updateState(AppState.ready);
+    _updateStatus('Entrada de texto disponible');
+    onTextInputRequested?.call('Entrada de texto activada');
+  }
+  
+  /// Procesa entrada de texto directamente
+  Future<void> processTextInput(String userInput) async {
+    if (userInput.trim().isEmpty) return;
+    
+    print('⌨️ Entrada de texto: "$userInput"');
+    
+    // Verificar comandos de control
+    if (_isStopCommand(userInput)) {
+      await stopConversation();
+      return;
+    }
+    
+    await _processUserInput(userInput);
   }
 
   /// Verifica si el usuario quiere terminar la conversación

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:avatar_glow/avatar_glow.dart';
 import '../../core/services/app_orchestrator.dart';
+import 'text_input_dialog.dart';
 import '../../core/providers/app_provider.dart';
 import '../../features/poi/models/poi_model.dart';
 
@@ -85,6 +87,27 @@ class _MapWithVoiceScreenState extends ConsumerState<MapWithVoiceScreen>
     
     // Inicializar la app
     orchestrator.initializeApp();
+  }
+
+  void _startConversationWithOptions(AppOrchestrator orchestrator) {
+    // Configurar callback para entrada de texto
+    orchestrator.onTextInputRequested = (_) {
+      _showTextInput(orchestrator);
+    };
+    
+    // Iniciar conversación
+    orchestrator.startConversation();
+  }
+  
+  void _showTextInput(AppOrchestrator orchestrator) {
+    showTextInputDialog(
+      context,
+      title: 'Escribe tu pregunta',
+      hint: 'Ej: ¿Qué puedo visitar aquí? ¿Cuéntame sobre este lugar?',
+      onSubmit: (text) async {
+        await orchestrator.processTextInput(text);
+      },
+    );
   }
 
   @override
@@ -361,9 +384,14 @@ class _MapWithVoiceScreenState extends ConsumerState<MapWithVoiceScreen>
       builder: (context, child) {
         final scale = isListening ? _pulseAnimation.value : 1.0;
         
-        return Transform.scale(
-          scale: scale,
-          child: GestureDetector(
+        return AvatarGlow(
+          animate: isListening,
+          glowColor: isListening ? Colors.red : Colors.green,
+          duration: const Duration(milliseconds: 2000),
+          repeat: true,
+          child: Transform.scale(
+            scale: scale,
+            child: GestureDetector(
             onTap: !canInteract ? null : () {
               print('🎤 Botón micrófono presionado - Estado: $state, En conversación: $isInConversation');
               
@@ -372,8 +400,12 @@ class _MapWithVoiceScreenState extends ConsumerState<MapWithVoiceScreen>
                 orchestrator.stopConversation();
               } else {
                 // Si no está en conversación, iniciarla
-                orchestrator.startConversation();
+                _startConversationWithOptions(orchestrator);
               }
+            },
+            onLongPress: !canInteract ? null : () {
+              // Long press para entrada de texto directa
+              _showTextInput(orchestrator);
             },
             child: Container(
               width: 60,
@@ -410,6 +442,7 @@ class _MapWithVoiceScreenState extends ConsumerState<MapWithVoiceScreen>
               ),
             ),
           ),
+        ),
         );
       },
     );
