@@ -1,75 +1,60 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/services/app_orchestrator.dart';
-import '../../core/providers/app_provider.dart';
 
-class VoiceAssistantScreen extends ConsumerStatefulWidget {
+// Enum simple para estados
+enum SimpleAppState {
+  starting,
+  permissions,
+  location,
+  findingPlaces,
+  ready,
+  error,
+}
+
+class VoiceAssistantScreen extends StatefulWidget {
   const VoiceAssistantScreen({super.key});
 
   @override
-  ConsumerState<VoiceAssistantScreen> createState() => _VoiceAssistantScreenState();
+  State<VoiceAssistantScreen> createState() => _VoiceAssistantScreenState();
 }
 
-class _VoiceAssistantScreenState extends ConsumerState<VoiceAssistantScreen>
-    with TickerProviderStateMixin {
-  late AnimationController _pulseController;
-  late AnimationController _waveController;
-  late Animation<double> _pulseAnimation;
-  late Animation<double> _waveAnimation;
+class _VoiceAssistantScreenState extends State<VoiceAssistantScreen> {
+  SimpleAppState _currentState = SimpleAppState.starting;
+  String _statusMessage = 'Iniciando Turismo AI...';
 
   @override
   void initState() {
     super.initState();
-    
-    // Configurar animaciones
-    _pulseController = AnimationController(
-      duration: const Duration(seconds: 2),
-      vsync: this,
-    );
-    
-    _waveController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
-      vsync: this,
-    );
-    
-    _pulseAnimation = Tween<double>(
-      begin: 0.8,
-      end: 1.2,
-    ).animate(CurvedAnimation(
-      parent: _pulseController,
-      curve: Curves.easeInOut,
-    ));
-    
-    _waveAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _waveController,
-      curve: Curves.easeInOut,
-    ));
-
-    // Inicializar la app automáticamente
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(appStateProvider.notifier).initializeApp();
-    });
+    // Iniciar proceso sin usar providers complejos
+    _startSimpleInitialization();
   }
 
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    _waveController.dispose();
-    super.dispose();
+  Future<void> _startSimpleInitialization() async {
+    // Simular inicialización paso a paso
+    await _updateState(SimpleAppState.permissions, 'Solicitando permisos...');
+    await Future.delayed(const Duration(seconds: 2));
+    
+    await _updateState(SimpleAppState.location, 'Obteniendo ubicación...');
+    await Future.delayed(const Duration(seconds: 2));
+    
+    await _updateState(SimpleAppState.findingPlaces, 'Buscando lugares cercanos...');
+    await Future.delayed(const Duration(seconds: 2));
+    
+    await _updateState(SimpleAppState.ready, '¡Listo! Habla para comenzar');
+  }
+
+  Future<void> _updateState(SimpleAppState newState, String message) async {
+    if (mounted) {
+      setState(() {
+        _currentState = newState;
+        _statusMessage = message;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final appState = ref.watch(appStateProvider);
-    
-    // Controlar animaciones según el estado
-    _updateAnimations(appState);
-
     return Scaffold(
-      backgroundColor: _getBackgroundColor(appState),
+      backgroundColor: _getBackgroundColor(_currentState),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
@@ -79,10 +64,10 @@ class _VoiceAssistantScreenState extends ConsumerState<VoiceAssistantScreen>
               const SizedBox(height: 40),
               Expanded(
                 child: Center(
-                  child: _buildMainContent(appState),
+                  child: _buildMainContent(_currentState),
                 ),
               ),
-              _buildControls(appState),
+              _buildControls(_currentState),
               const SizedBox(height: 20),
             ],
           ),
@@ -112,53 +97,49 @@ class _VoiceAssistantScreenState extends ConsumerState<VoiceAssistantScreen>
     );
   }
 
-  Widget _buildMainContent(AppState state) {
+  Widget _buildMainContent(SimpleAppState state) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         _buildVisualIndicator(state),
         const SizedBox(height: 32),
+        if (state != SimpleAppState.ready) 
+          const CircularProgressIndicator(color: Colors.white),
+        if (state != SimpleAppState.ready) 
+          const SizedBox(height: 24),
         _buildStatusText(state),
-        const SizedBox(height: 24),
+        const SizedBox(height: 16),
         _buildStateDescription(state),
       ],
     );
   }
 
-  Widget _buildVisualIndicator(AppState state) {
-    return AnimatedBuilder(
-      animation: _pulseAnimation,
-      builder: (context, child) {
-        return Transform.scale(
-          scale: state == AppState.listening ? _pulseAnimation.value : 1.0,
-          child: Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: _getIndicatorColor(state),
-              boxShadow: [
-                BoxShadow(
-                  color: _getIndicatorColor(state).withOpacity(0.3),
-                  blurRadius: 20,
-                  spreadRadius: 5,
-                ),
-              ],
-            ),
-            child: Icon(
-              _getIndicatorIcon(state),
-              size: 48,
-              color: Colors.white,
-            ),
+  Widget _buildVisualIndicator(SimpleAppState state) {
+    return Container(
+      width: 120,
+      height: 120,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: _getIndicatorColor(state),
+        boxShadow: [
+          BoxShadow(
+            color: _getIndicatorColor(state).withOpacity(0.3),
+            blurRadius: 20,
+            spreadRadius: 5,
           ),
-        );
-      },
+        ],
+      ),
+      child: Icon(
+        _getIndicatorIcon(state),
+        size: 48,
+        color: Colors.white,
+      ),
     );
   }
 
-  Widget _buildStatusText(AppState state) {
+  Widget _buildStatusText(SimpleAppState state) {
     return Text(
-      _getStatusText(state),
+      _statusMessage,
       style: Theme.of(context).textTheme.headlineSmall?.copyWith(
         color: Colors.white,
         fontWeight: FontWeight.w600,
@@ -167,7 +148,7 @@ class _VoiceAssistantScreenState extends ConsumerState<VoiceAssistantScreen>
     );
   }
 
-  Widget _buildStateDescription(AppState state) {
+  Widget _buildStateDescription(SimpleAppState state) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
@@ -184,30 +165,28 @@ class _VoiceAssistantScreenState extends ConsumerState<VoiceAssistantScreen>
     );
   }
 
-  Widget _buildControls(AppState state) {
+  Widget _buildControls(SimpleAppState state) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         _buildControlButton(
           icon: Icons.refresh,
           label: 'Reiniciar',
-          onPressed: state != AppState.initializing 
-              ? () => ref.read(appStateProvider.notifier).restartApp()
+          onPressed: state != SimpleAppState.starting 
+              ? () => _startSimpleInitialization()
               : null,
         ),
         _buildControlButton(
           icon: Icons.my_location,
           label: 'Ubicación',
-          onPressed: state == AppState.ready
-              ? () => ref.read(appStateProvider.notifier).updateLocation()
+          onPressed: state == SimpleAppState.ready
+              ? () => _updateState(SimpleAppState.location, 'Actualizando ubicación...')
               : null,
         ),
         _buildControlButton(
-          icon: Icons.stop,
-          label: 'Detener',
-          onPressed: state != AppState.initializing && state != AppState.error
-              ? () => ref.read(appStateProvider.notifier).stopApp()
-              : null,
+          icon: Icons.settings,
+          label: 'Debug',
+          onPressed: () => print('Estado actual: $state'),
         ),
       ],
     );
@@ -243,130 +222,70 @@ class _VoiceAssistantScreenState extends ConsumerState<VoiceAssistantScreen>
     );
   }
 
-  void _updateAnimations(AppState state) {
+  Color _getBackgroundColor(SimpleAppState state) {
     switch (state) {
-      case AppState.listening:
-        _pulseController.repeat(reverse: true);
-        _waveController.repeat();
-        break;
-      case AppState.speaking:
-        _pulseController.reset();
-        _waveController.repeat();
-        break;
-      case AppState.processing:
-        _pulseController.reset();
-        _waveController.repeat();
-        break;
-      default:
-        _pulseController.reset();
-        _waveController.reset();
-        break;
-    }
-  }
-
-  Color _getBackgroundColor(AppState state) {
-    switch (state) {
-      case AppState.initializing:
+      case SimpleAppState.starting:
         return Colors.grey[800]!;
-      case AppState.requestingPermissions:
+      case SimpleAppState.permissions:
         return Colors.orange[700]!;
-      case AppState.gettingLocation:
+      case SimpleAppState.location:
         return Colors.blue[700]!;
-      case AppState.findingPOIs:
+      case SimpleAppState.findingPlaces:
         return Colors.purple[700]!;
-      case AppState.ready:
+      case SimpleAppState.ready:
         return Colors.green[700]!;
-      case AppState.listening:
-        return Colors.blue[600]!;
-      case AppState.processing:
-        return Colors.amber[700]!;
-      case AppState.speaking:
-        return Colors.teal[600]!;
-      case AppState.error:
+      case SimpleAppState.error:
         return Colors.red[700]!;
     }
   }
 
-  Color _getIndicatorColor(AppState state) {
+  Color _getIndicatorColor(SimpleAppState state) {
     switch (state) {
-      case AppState.listening:
-        return Colors.blue[400]!;
-      case AppState.speaking:
-        return Colors.teal[400]!;
-      case AppState.processing:
-        return Colors.amber[400]!;
-      case AppState.error:
-        return Colors.red[400]!;
-      default:
+      case SimpleAppState.starting:
         return Colors.grey[400]!;
+      case SimpleAppState.permissions:
+        return Colors.orange[400]!;
+      case SimpleAppState.location:
+        return Colors.blue[400]!;
+      case SimpleAppState.findingPlaces:
+        return Colors.purple[400]!;
+      case SimpleAppState.ready:
+        return Colors.green[400]!;
+      case SimpleAppState.error:
+        return Colors.red[400]!;
     }
   }
 
-  IconData _getIndicatorIcon(AppState state) {
+  IconData _getIndicatorIcon(SimpleAppState state) {
     switch (state) {
-      case AppState.initializing:
+      case SimpleAppState.starting:
         return Icons.hourglass_empty;
-      case AppState.requestingPermissions:
+      case SimpleAppState.permissions:
         return Icons.security;
-      case AppState.gettingLocation:
+      case SimpleAppState.location:
         return Icons.location_on;
-      case AppState.findingPOIs:
+      case SimpleAppState.findingPlaces:
         return Icons.search;
-      case AppState.ready:
+      case SimpleAppState.ready:
         return Icons.mic;
-      case AppState.listening:
-        return Icons.mic;
-      case AppState.processing:
-        return Icons.psychology;
-      case AppState.speaking:
-        return Icons.volume_up;
-      case AppState.error:
+      case SimpleAppState.error:
         return Icons.error;
     }
   }
 
-  String _getStatusText(AppState state) {
+  String _getStateDescription(SimpleAppState state) {
     switch (state) {
-      case AppState.initializing:
-        return 'Iniciando...';
-      case AppState.requestingPermissions:
-        return 'Solicitando Permisos';
-      case AppState.gettingLocation:
-        return 'Obteniendo Ubicación';
-      case AppState.findingPOIs:
-        return 'Buscando Lugares';
-      case AppState.ready:
-        return 'Listo para Escuchar';
-      case AppState.listening:
-        return 'Escuchando...';
-      case AppState.processing:
-        return 'Procesando...';
-      case AppState.speaking:
-        return 'Hablando...';
-      case AppState.error:
-        return 'Error';
-    }
-  }
-
-  String _getStateDescription(AppState state) {
-    switch (state) {
-      case AppState.initializing:
+      case SimpleAppState.starting:
         return 'Configurando tu asistente de turismo personalizado';
-      case AppState.requestingPermissions:
-        return 'Necesito acceso a tu ubicación y micrófono para funcionar';
-      case AppState.gettingLocation:
+      case SimpleAppState.permissions:
+        return 'Solicitando acceso a ubicación y micrófono';
+      case SimpleAppState.location:
         return 'Encontrando tu ubicación actual para buscar lugares cercanos';
-      case AppState.findingPOIs:
+      case SimpleAppState.findingPlaces:
         return 'Buscando los lugares más interesantes cerca de ti';
-      case AppState.ready:
-        return 'Hazme cualquier pregunta sobre lugares turísticos';
-      case AppState.listening:
-        return 'Te estoy escuchando, habla con claridad';
-      case AppState.processing:
-        return 'Generando una respuesta personalizada para ti';
-      case AppState.speaking:
-        return 'Escucha mi respuesta, luego puedes hacer otra pregunta';
-      case AppState.error:
+      case SimpleAppState.ready:
+        return 'Todo listo! Habla para hacer preguntas sobre lugares turísticos';
+      case SimpleAppState.error:
         return 'Algo salió mal. Usa los controles para reintentar';
     }
   }

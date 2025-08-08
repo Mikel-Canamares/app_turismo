@@ -6,8 +6,13 @@ import 'shared/widgets/voice_assistant_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Cargar archivo .env
-  await dotenv.load(fileName: ".env");
+  try {
+    // Cargar archivo .env de forma asíncrona pero no bloquear UI
+    await dotenv.load(fileName: ".env");
+  } catch (e) {
+    print('Error cargando .env: $e');
+    // Continuar sin .env para debug
+  }
   
   runApp(
     const ProviderScope(
@@ -42,3 +47,4 @@ class TurismoAiApp extends StatelessWidget {
     );
   }
 }
+
