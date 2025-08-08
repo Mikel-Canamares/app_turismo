@@ -5,11 +5,9 @@
 *.swp
 .DS_Store
 .atom/
-.build/
 .buildlog/
 .history
 .svn/
-.swiftpm/
 migrate_working_dir/
 
 # IntelliJ related
@@ -25,7 +23,7 @@ migrate_working_dir/
 
 # Flutter/Dart/Pub related
 **/doc/api/
-**/ios/Flutter/.last_build_id
+**/ios/Flutter/flutter_exports_environment.sh
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
@@ -43,3 +41,17 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Environment variables and API keys
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+*.key
+secrets.json
+
+# Generated files
+*.g.dart
+*.freezed.dart
+*.mocks.dart
