@@ -17,15 +17,9 @@ class PermissionService {
     try {
       print('🔐 Solicitando permisos...');
       
-      // Solicitar permisos de ubicación precisos
+      // Solicitar solo permiso de ubicación cuando la app está en uso
       final locationWhenInUse = await Permission.locationWhenInUse.request();
       print('📍 Permiso ubicación cuando en uso: $locationWhenInUse');
-      
-      // Si ubicación cuando en uso es concedida, solicitar ubicación siempre
-      if (locationWhenInUse.isGranted) {
-        final locationAlways = await Permission.locationAlways.request();
-        print('📍 Permiso ubicación siempre: $locationAlways');
-      }
       
       // Solicitar permiso de micrófono
       final microphone = await Permission.microphone.request();

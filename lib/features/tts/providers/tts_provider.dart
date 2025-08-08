@@ -25,8 +25,9 @@ class TTSNotifier extends StateNotifier<bool> {
 
   Future<void> speakAndWait(String text) async {
     state = true;
-    await _ttsService.speakAndWait(text);
-    state = false;
+    await _ttsService.speak(text);
+    // Note: This will return immediately, not wait for completion
+    // Use speak() for fire-and-forget behavior
   }
 
   Future<void> stop() async {

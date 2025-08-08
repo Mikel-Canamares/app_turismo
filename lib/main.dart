@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'shared/widgets/voice_assistant_screen.dart';
+import 'shared/widgets/map_with_voice_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,7 +42,7 @@ class TurismoAiApp extends StatelessWidget {
           brightness: Brightness.dark,
         ),
       ),
-      home: const VoiceAssistantScreen(),
+      home: const MapWithVoiceScreen(),
       debugShowCheckedModeBanner: false,
     );
   }

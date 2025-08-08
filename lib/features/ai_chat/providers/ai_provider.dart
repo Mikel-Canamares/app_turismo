@@ -19,9 +19,8 @@ class AIConversationNotifier extends StateNotifier<AsyncValue<String?>> {
     state = const AsyncValue.loading();
     
     try {
-      final response = await _aiService.generateResponse(
-        userMessage: userMessage,
-        context: _currentContext ?? '',
+      final response = await _aiService.generateTourismResponse(
+        userQuestion: userMessage,
       );
       state = AsyncValue.data(response);
     } catch (error, stackTrace) {
@@ -29,11 +28,11 @@ class AIConversationNotifier extends StateNotifier<AsyncValue<String?>> {
     }
   }
 
-  Future<void> generateWelcomeMessage(String? poiContext) async {
+  Future<void> generateWelcomeMessage() async {
     state = const AsyncValue.loading();
     
     try {
-      final response = await _aiService.generateWelcomeMessage(poiContext);
+      final response = await _aiService.generateWelcomeMessage();
       state = AsyncValue.data(response);
     } catch (error, stackTrace) {
       state = AsyncValue.error(error, stackTrace);
@@ -41,17 +40,13 @@ class AIConversationNotifier extends StateNotifier<AsyncValue<String?>> {
   }
 
   Future<void> generateTourismResponse({
-    required String question,
-    required String locationContext,
-    String? poiDetails,
+    required String userQuestion,
   }) async {
     state = const AsyncValue.loading();
     
     try {
       final response = await _aiService.generateTourismResponse(
-        question: question,
-        locationContext: locationContext,
-        poiDetails: poiDetails,
+        userQuestion: userQuestion,
       );
       state = AsyncValue.data(response);
     } catch (error, stackTrace) {

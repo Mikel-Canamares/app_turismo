@@ -1,241 +1,201 @@
-// import 'package:flutter_tts/flutter_tts.dart';
-import 'package:flutter/foundation.dart';
-import '../../../core/utils/constants.dart';
 import 'dart:async';
+import 'dart:math';
 
+/// Mock implementation mejorado de TTSService
+/// Simula el comportamiento real del Text-to-Speech
 class TTSService {
   static final TTSService _instance = TTSService._internal();
   factory TTSService() => _instance;
   TTSService._internal();
 
-  // final FlutterTts _flutterTts = FlutterTts();
   bool _isInitialized = false;
   bool _isSpeaking = false;
-  bool _isPaused = false;
+  
+  // Configuración por defecto
+  String _language = 'es-ES';
+  double _speechRate = 0.5;
+  double _volume = 1.0;
+  double _pitch = 1.0;
 
   // Getters
   bool get isInitialized => _isInitialized;
   bool get isSpeaking => _isSpeaking;
-  bool get isPaused => _isPaused;
+  String get language => _language;
+  double get speechRate => _speechRate;
+  double get volume => _volume;
+  double get pitch => _pitch;
 
-  /// Inicializa el servicio de TTS (MOCK)
-  Future<void> initialize() async {
-    try {
-      print('🔊 Inicializando servicio de TTS (MOCK)...');
-
-      // Simular inicialización
-      await Future.delayed(const Duration(milliseconds: 300));
-
-      // Simular configuración de idioma español
-      await setLanguage('es-ES');
-
-      // Simular configuración de velocidad y tono
-      await setSpeechRate(0.6); // Velocidad moderada
-      await setPitch(1.0); // Tono normal
-      await setVolume(0.8); // Volumen alto
-
-      // Simular idiomas disponibles
-      print('🌍 Idiomas TTS disponibles (MOCK): es-ES, en-US, fr-FR, de-DE, it-IT');
-
-      _isInitialized = true;
-      print('✅ TTS inicializado correctamente (MOCK)');
-      
-    } catch (e) {
-      print('❌ Error inicializando TTS: $e');
-      _isInitialized = false;
-    }
+  Future<bool> initialize() async {
+    print("🔊 [MOCK] TTSService: Inicializando...");
+    await Future.delayed(const Duration(milliseconds: 400));
+    
+    _isInitialized = true;
+    print("✅ [MOCK] TTSService: Inicializado correctamente con idioma $_language");
+    print("🌐 [MOCK] Idiomas TTS disponibles: es-ES, es-US, en-US, fr-FR, de-DE");
+    
+    return true;
   }
 
-  /// Reproduce texto usando TTS (MOCK)
-  Future<void> speak(String text) async {
+  Future<bool> speak(String text) async {
     if (!_isInitialized) {
-      await initialize();
+      final initialized = await initialize();
+      if (!initialized) {
+        print('❌ [MOCK] No se puede reproducir: TTS no inicializado');
+        return false;
+      }
     }
 
-    if (!_isInitialized) {
-      print('❌ TTS no inicializado, no se puede hablar');
-      return;
+    if (_isSpeaking) {
+      print('⚠️ [MOCK] TTSService: Ya se está reproduciendo, deteniendo anterior...');
+      await stop();
+    }
+
+    if (text.trim().isEmpty) {
+      print('⚠️ [MOCK] TTSService: Texto vacío, no se puede reproducir');
+      return false;
     }
 
     try {
-      // Detener cualquier habla anterior
-      if (_isSpeaking) {
-        await stop();
-      }
-
-      if (text.trim().isEmpty) {
-        print('⚠️ Texto vacío, no se puede hablar');
-        return;
-      }
-
-      print('🗣️ TTS hablando (MOCK): "$text"');
+      print('🔊 [MOCK] TTSService: Reproduciendo: "${text.substring(0, text.length.clamp(0, 50))}${text.length > 50 ? '...' : ''}"');
+      
       _isSpeaking = true;
-      _isPaused = false;
       
-      // Simular duración basada en la longitud del texto
-      final duration = Duration(milliseconds: (text.length * 80).clamp(1000, 8000));
-      await Future.delayed(duration);
+      // Simular tiempo de reproducción basado en longitud del texto
+      // Aproximadamente 150 palabras por minuto en español
+      final words = text.split(' ').length;
+      final estimatedDuration = Duration(milliseconds: (words * 400 / _speechRate).round());
+      final actualDuration = Duration(
+        milliseconds: estimatedDuration.inMilliseconds + Random().nextInt(500) - 250
+      );
+      
+      print('⏱️ [MOCK] Duración estimada: ${actualDuration.inSeconds} segundos');
+      
+      await Future.delayed(actualDuration);
       
       _isSpeaking = false;
-      print('✅ TTS: Completado (MOCK)');
+      print('✅ [MOCK] TTSService: Reproducción completada');
+      return true;
       
     } catch (e) {
-      print('❌ Error al hablar: $e');
+      print('❌ [MOCK] TTSService Error reproduciendo: $e');
       _isSpeaking = false;
+      return false;
     }
   }
 
-  /// Detiene la reproducción (MOCK)
   Future<void> stop() async {
-    try {
-      if (_isSpeaking || _isPaused) {
-        _isSpeaking = false;
-        _isPaused = false;
-        print('🛑 TTS: Detenido (MOCK)');
-      }
-    } catch (e) {
-      print('❌ Error deteniendo TTS: $e');
-    }
-  }
-
-  /// Pausa la reproducción (MOCK)
-  Future<void> pause() async {
-    try {
-      if (_isSpeaking && !_isPaused) {
-        _isPaused = true;
-        print('⏸️ TTS: Pausado (MOCK)');
-      }
-    } catch (e) {
-      print('❌ Error pausando TTS: $e');
-    }
-  }
-
-  /// Continúa la reproducción (MOCK)
-  Future<void> continue_() async {
-    try {
-      if (_isPaused) {
-        _isPaused = false;
-        print('▶️ TTS: Continuando (MOCK)...');
-      }
-    } catch (e) {
-      print('❌ Error continuando TTS: $e');
-    }
-  }
-
-  /// Configura el idioma (MOCK)
-  Future<void> setLanguage(String language) async {
-    try {
-      print('🌍 TTS idioma configurado (MOCK): $language');
-    } catch (e) {
-      print('❌ Error configurando idioma TTS: $e');
-    }
-  }
-
-  /// Configura la velocidad de habla (MOCK)
-  Future<void> setSpeechRate(double rate) async {
-    try {
-      print('⚡ TTS velocidad configurada (MOCK): $rate');
-    } catch (e) {
-      print('❌ Error configurando velocidad TTS: $e');
-    }
-  }
-
-  /// Configura el tono de voz (MOCK)
-  Future<void> setPitch(double pitch) async {
-    try {
-      print('🎵 TTS tono configurado (MOCK): $pitch');
-    } catch (e) {
-      print('❌ Error configurando tono TTS: $e');
-    }
-  }
-
-  /// Configura el volumen (MOCK)
-  Future<void> setVolume(double volume) async {
-    try {
-      print('🔊 TTS volumen configurado (MOCK): $volume');
-    } catch (e) {
-      print('❌ Error configurando volumen TTS: $e');
-    }
-  }
-
-  /// Obtiene los idiomas disponibles (MOCK)
-  Future<List<String>> getLanguages() async {
-    return ['es-ES', 'en-US', 'fr-FR', 'de-DE', 'it-IT']; // Mock languages
-  }
-
-  /// Obtiene las voces disponibles (MOCK)
-  Future<List<Map<String, String>>> getVoices() async {
-    return [
-      {'name': 'Spanish Female Voice', 'locale': 'es-ES'},
-      {'name': 'Spanish Male Voice', 'locale': 'es-ES'},
-      {'name': 'English Female Voice', 'locale': 'en-US'},
-      {'name': 'English Male Voice', 'locale': 'en-US'},
-    ]; // Mock voices
-  }
-
-  /// Configura la voz específica (MOCK)
-  Future<void> setVoice(Map<String, String> voice) async {
-    try {
-      print('👤 TTS voz configurada (MOCK): ${voice['name']}');
-    } catch (e) {
-      print('❌ Error configurando voz TTS: $e');
-    }
-  }
-
-  /// Habla y espera a que termine (MOCK)
-  Future<void> speakAndWait(String text) async {
-    if (text.trim().isEmpty) return;
-    
-    await speak(text);
-    
-    // Esperar hasta que termine de hablar
-    while (_isSpeaking) {
-      await Future.delayed(const Duration(milliseconds: 100));
-    }
-  }
-
-  /// Habla un mensaje del sistema con configuración especial (MOCK)
-  Future<void> speakSystemMessage(String message) async {
-    try {
-      // Configuración para mensajes del sistema
-      await setSpeechRate(0.7); // Más lento para claridad
-      await setPitch(0.9); // Tono ligeramente más bajo
-      
-      await speakAndWait(message);
-      
-    } finally {
-      // Restaurar configuración
-      await setSpeechRate(0.6);
-      await setPitch(1.0);
-    }
-  }
-
-  /// Habla una respuesta de IA con entonación natural (MOCK)
-  Future<void> speakAIResponse(String response) async {
-    // Configuración para respuestas de IA
-    await setSpeechRate(0.6); // Velocidad conversacional
-    await setPitch(1.0); // Tono natural
-    
-    await speakAndWait(response);
-  }
-
-  /// Verifica si TTS está disponible (MOCK)
-  Future<bool> isAvailable() async {
-    return true; // Mock siempre disponible
-  }
-
-  /// Limpia recursos (MOCK)
-  void dispose() {
-    try {
-      if (_isSpeaking) {
-        _isSpeaking = false;
-      }
-      _isInitialized = false;
+    if (_isSpeaking) {
+      print('🛑 [MOCK] TTSService: Deteniendo reproducción...');
       _isSpeaking = false;
-      _isPaused = false;
-      print('🗑️ TTSService disposed (MOCK)');
-    } catch (e) {
-      print('❌ Error disposing TTS: $e');
+      print('✅ [MOCK] TTSService: Reproducción detenida');
     }
+  }
+
+  Future<void> pause() async {
+    if (_isSpeaking) {
+      print('⏸️ [MOCK] TTSService: Pausando reproducción...');
+      // En el mock, pausa = stop
+      _isSpeaking = false;
+      print('✅ [MOCK] TTSService: Reproducción pausada');
+    }
+  }
+
+  Future<void> resume() async {
+    print('▶️ [MOCK] TTSService: Función resume no implementada en mock');
+  }
+
+  // Configuración de parámetros
+  Future<void> setLanguage(String language) async {
+    _language = language;
+    print('🌐 [MOCK] TTSService: Idioma cambiado a $language');
+  }
+
+  Future<void> setSpeechRate(double rate) async {
+    _speechRate = rate.clamp(0.0, 1.0);
+    print('⚡ [MOCK] TTSService: Velocidad cambiada a $_speechRate');
+  }
+
+  Future<void> setVolume(double volume) async {
+    _volume = volume.clamp(0.0, 1.0);
+    print('🔊 [MOCK] TTSService: Volumen cambiado a $_volume');
+  }
+
+  Future<void> setPitch(double pitch) async {
+    _pitch = pitch.clamp(0.5, 2.0);
+    print('🎵 [MOCK] TTSService: Tono cambiado a $_pitch');
+  }
+
+  Future<List<String>> getAvailableLanguages() async {
+    await Future.delayed(const Duration(milliseconds: 100));
+    return ['es-ES', 'es-US', 'en-US', 'fr-FR', 'de-DE', 'it-IT'];
+  }
+
+  Future<List<String>> getAvailableVoices() async {
+    await Future.delayed(const Duration(milliseconds: 100));
+    return ['María (España)', 'Carlos (México)', 'Ana (Argentina)', 'Luis (Colombia)'];
+  }
+
+  Future<bool> isLanguageAvailable(String language) async {
+    await Future.delayed(const Duration(milliseconds: 50));
+    final availableLanguages = await getAvailableLanguages();
+    return availableLanguages.contains(language);
+  }
+
+  /// Método conveniente para hablar con configuración específica
+  Future<bool> speakWithConfig({
+    required String text,
+    String? language,
+    double? speechRate,
+    double? volume,
+    double? pitch,
+  }) async {
+    // Guardar configuración actual
+    final originalLanguage = _language;
+    final originalRate = _speechRate;
+    final originalVolume = _volume;
+    final originalPitch = _pitch;
+
+    try {
+      // Aplicar configuración temporal
+      if (language != null && language != _language) {
+        await setLanguage(language);
+      }
+      if (speechRate != null && speechRate != _speechRate) {
+        await setSpeechRate(speechRate);
+      }
+      if (volume != null && volume != _volume) {
+        await setVolume(volume);
+      }
+      if (pitch != null && pitch != _pitch) {
+        await setPitch(pitch);
+      }
+
+      // Hablar
+      final result = await speak(text);
+
+      return result;
+    } finally {
+      // Restaurar configuración original
+      if (language != null && language != originalLanguage) {
+        await setLanguage(originalLanguage);
+      }
+      if (speechRate != null && speechRate != originalRate) {
+        await setSpeechRate(originalRate);
+      }
+      if (volume != null && volume != originalVolume) {
+        await setVolume(originalVolume);
+      }
+      if (pitch != null && pitch != originalPitch) {
+        await setPitch(originalPitch);
+      }
+    }
+  }
+
+  void dispose() {
+    print("🗑️ [MOCK] TTSService disposed");
+    if (_isSpeaking) {
+      _isSpeaking = false;
+    }
+    _isInitialized = false;
   }
 }

@@ -23,7 +23,7 @@ final mostInterestingPOIProvider = FutureProvider.family<PointOfInterest?, Posit
   );
 });
 
-final poiDetailsProvider = FutureProvider.family<PoiDetailsResponse?, String>((ref, xid) async {
+final poiDetailsProvider = FutureProvider.family<PointOfInterest?, String>((ref, xid) async {
   final poiService = ref.read(poiServiceProvider);
   return await poiService.getPOIDetails(xid);
 });

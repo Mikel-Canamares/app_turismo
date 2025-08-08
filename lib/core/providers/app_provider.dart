@@ -30,6 +30,16 @@ class AppStateNotifier extends StateNotifier<AppState> {
     await _orchestrator.updateLocation();
   }
 
+  Future<void> startConversation() async {
+    await _orchestrator.startConversation();
+  }
+
+  Future<void> stopConversation() async {
+    await _orchestrator.stopConversation();
+  }
+
+  bool get isInConversation => _orchestrator.isInConversation;
+
   @override
   void dispose() {
     _orchestrator.dispose();

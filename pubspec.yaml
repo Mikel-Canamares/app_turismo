@@ -18,9 +18,9 @@ dependencies:
   geolocator: ^11.0.0
   permission_handler: ^11.3.0
   
-  # Speech y TTS - Temporalmente deshabilitados por problemas de compilación
-  # speech_to_text: ^6.6.0
-  # flutter_tts: ^4.0.2
+  # Speech y TTS - Temporalmente comentados por problemas de compatibilidad
+  # speech_to_text: ^7.0.0
+  # flutter_tts: ^4.2.3
   
   # Mapas
   flutter_map: ^6.1.0

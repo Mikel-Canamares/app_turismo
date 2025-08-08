@@ -232,12 +232,12 @@ class AppOrchestrator {
       );
 
       print('🗣️ Reproduciendo bienvenida...');
-      await _ttsService.speakSystemMessage(welcomeMessage);
+      await _ttsService.speak(welcomeMessage);
       
     } catch (e) {
       print('❌ Error generando bienvenida: $e');
       // Bienvenida de fallback
-      await _ttsService.speakSystemMessage(
+      await _ttsService.speak(
         '¡Hola! Soy tu asistente turístico. ¿En qué puedo ayudarte?'
       );
     }
@@ -293,9 +293,27 @@ class AppOrchestrator {
       _updateStatus('Escuchando... Habla ahora');
       
       print('👂 Escuchando entrada del usuario...');
+      print('🔍 Estado SpeechService - Inicializado: ${_speechService.isInitialized}, Disponible: ${_speechService.isAvailable}, Escuchando: ${_speechService.isListening}');
       
-      final userInput = await _speechService.listenForCommand(
-        timeout: const Duration(seconds: 10),
+      // Verificar permisos antes de escuchar
+      final hasPermission = await _speechService.hasPermission;
+      print('🔐 Permiso de micrófono: $hasPermission');
+      
+      if (!hasPermission) {
+        print('❌ Sin permiso de micrófono, solicitando...');
+        final granted = await _speechService.requestPermission();
+        if (!granted) {
+          print('❌ Permiso de micrófono denegado');
+          _updateStatus('Permiso de micrófono requerido para funcionar');
+          _updateState(AppState.error);
+          return;
+        }
+      }
+      
+      final userInput = await _speechService.startListening(
+        listenFor: const Duration(seconds: 10),
+        pauseFor: const Duration(seconds: 3),
+        localeId: 'es-ES',
       );
 
       if (userInput != null && userInput.trim().isNotEmpty) {
@@ -378,7 +396,7 @@ class AppOrchestrator {
       _updateStatus('Hablando...');
       
       print('🗣️ Reproduciendo respuesta: "$response"');
-      await _ttsService.speakAIResponse(response);
+      await _ttsService.speak(response);
       
       // Decidir si continuar la conversación o volver a ready
       if (_isInConversation) {
