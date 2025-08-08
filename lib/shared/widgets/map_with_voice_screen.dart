@@ -43,60 +43,39 @@ class _MapWithVoiceScreenState extends ConsumerState<MapWithVoiceScreen>
       curve: Curves.easeInOut,
     ));
 
-    // Configurar callbacks del orchestrator
+    // Inicializar app usando el provider correcto
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _setupOrchestrator();
+      _initializeApp();
     });
   }
 
-  void _setupOrchestrator() {
+  void _initializeApp() {
+    // Usar el provider de estado en lugar de callbacks directos
+    final appStateNotifier = ref.read(appStateProvider.notifier);
+    appStateNotifier.initializeApp();
+  }
+  
+  void _updateFromOrchestrator() {
     final orchestrator = ref.read(appOrchestratorProvider);
     
-    // Configurar callbacks
-    orchestrator.onStateChanged = (AppState state) {
-      if (mounted) {
-        setState(() {
-          _updateAnimations(state);
-          // Actualizar ubicación y POIs
-          if (orchestrator.currentPosition != null) {
-            _currentLocation = LatLng(
-              orchestrator.currentPosition!.latitude,
-              orchestrator.currentPosition!.longitude,
-            );
-          }
-          _nearbyPOIs = orchestrator.nearbyPOIs;
-        });
-      }
-    };
-    
-    orchestrator.onStatusUpdate = (String status) {
-      if (mounted) {
-        setState(() {
-          _statusMessage = status;
-        });
-      }
-    };
-    
-    orchestrator.onError = (String error) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = error;
-        });
-      }
-    };
-    
-    // Inicializar la app
-    orchestrator.initializeApp();
+    // Actualizar ubicación y POIs
+    if (orchestrator.currentPosition != null) {
+      _currentLocation = LatLng(
+        orchestrator.currentPosition!.latitude,
+        orchestrator.currentPosition!.longitude,
+      );
+    }
+    _nearbyPOIs = orchestrator.nearbyPOIs;
   }
 
-  void _startConversationWithOptions(AppOrchestrator orchestrator) {
+  void _startConversationWithOptions(AppStateNotifier appStateNotifier, AppOrchestrator orchestrator) {
     // Configurar callback para entrada de texto
     orchestrator.onTextInputRequested = (_) {
       _showTextInput(orchestrator);
     };
     
     // Iniciar conversación
-    orchestrator.startConversation();
+    appStateNotifier.startConversation();
   }
   
   void _showTextInput(AppOrchestrator orchestrator) {
@@ -119,6 +98,12 @@ class _MapWithVoiceScreenState extends ConsumerState<MapWithVoiceScreen>
   @override
   Widget build(BuildContext context) {
     final appState = ref.watch(appStateProvider);
+    
+    // Actualizar animaciones basado en el estado
+    _updateAnimations(appState);
+    
+    // Actualizar datos del orchestrator
+    _updateFromOrchestrator();
     
     return Scaffold(
       body: SafeArea(
@@ -329,20 +314,21 @@ class _MapWithVoiceScreenState extends ConsumerState<MapWithVoiceScreen>
   }
 
   Widget _buildVoiceControls(AppState state) {
+    final appStateNotifier = ref.read(appStateProvider.notifier);
     final orchestrator = ref.read(appOrchestratorProvider);
     
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         // Botón principal del micrófono
-        _buildMicrophoneButton(state, orchestrator),
+        _buildMicrophoneButton(state, appStateNotifier, orchestrator),
         
         // Botón de ubicación
         _buildControlButton(
           icon: Icons.my_location,
           label: 'Ubicación',
           onPressed: state == AppState.ready || state == AppState.error
-              ? () => orchestrator.updateLocation()
+              ? () => appStateNotifier.updateLocation()
               : null,
         ),
         
@@ -351,31 +337,31 @@ class _MapWithVoiceScreenState extends ConsumerState<MapWithVoiceScreen>
           icon: Icons.refresh,
           label: 'Reiniciar',
           onPressed: state != AppState.initializing 
-              ? () => orchestrator.restartApp()
+              ? () => appStateNotifier.restartApp()
               : null,
         ),
         
         // Botón terminar conversación o pausar
-        if (orchestrator.isInConversation)
+        if (appStateNotifier.isInConversation)
           _buildControlButton(
             icon: Icons.stop_circle,
             label: 'Terminar',
-            onPressed: () => orchestrator.stopConversation(),
+            onPressed: () => appStateNotifier.stopConversation(),
           )
         else
           _buildControlButton(
             icon: Icons.pause,
             label: 'Pausar',
             onPressed: state != AppState.initializing && state != AppState.error
-                ? () => orchestrator.stopApp()
+                ? () => appStateNotifier.stopApp()
                 : null,
           ),
       ],
     );
   }
 
-  Widget _buildMicrophoneButton(AppState state, AppOrchestrator orchestrator) {
-    final isInConversation = orchestrator.isInConversation;
+  Widget _buildMicrophoneButton(AppState state, AppStateNotifier appStateNotifier, AppOrchestrator orchestrator) {
+    final isInConversation = appStateNotifier.isInConversation;
     final isListening = state == AppState.listening;
     final canInteract = state == AppState.ready || state == AppState.conversationActive;
     
@@ -397,10 +383,10 @@ class _MapWithVoiceScreenState extends ConsumerState<MapWithVoiceScreen>
               
               if (isInConversation) {
                 // Si está en conversación, terminarla
-                orchestrator.stopConversation();
+                appStateNotifier.stopConversation();
               } else {
                 // Si no está en conversación, iniciarla
-                _startConversationWithOptions(orchestrator);
+                _startConversationWithOptions(appStateNotifier, orchestrator);
               }
             },
             onLongPress: !canInteract ? null : () {
