@@ -43,6 +43,11 @@ class AppOrchestrator {
   bool _isRunning = false;
   bool _isInConversation = false;
   bool _shouldContinueListening = false;
+  
+  // Historial de conversación para UI
+  String _lastUserInput = '';
+  String _lastAIResponse = '';
+  List<Map<String, String>> _conversationHistory = [];
 
   // Getters
   AppState get currentState => _currentState;
@@ -53,11 +58,17 @@ class AppOrchestrator {
   String? get lastError => _lastError;
   bool get isRunning => _isRunning;
   bool get isInConversation => _isInConversation;
+  
+  // Getters para conversación
+  String get lastUserInput => _lastUserInput;
+  String get lastAIResponse => _lastAIResponse;
+  List<Map<String, String>> get conversationHistory => List.unmodifiable(_conversationHistory);
 
   // Callback para cambios de estado
   Function(AppState)? onStateChanged;
   Function(String)? onError;
   Function(String)? onStatusUpdate;
+  Function()? onConversationUpdated;
 
   /// Inicializa la aplicación completa
   Future<void> initializeApp() async {
@@ -314,6 +325,10 @@ class AppOrchestrator {
       if (userInput != null && userInput.trim().isNotEmpty) {
         print('📝 Usuario dijo: "$userInput"');
         
+        // Guardar entrada del usuario
+        _lastUserInput = userInput;
+        _addToConversationHistory('user', userInput);
+        
         // Verificar comandos de control
         if (_isStopCommand(userInput)) {
           await stopConversation();
@@ -354,6 +369,10 @@ class AppOrchestrator {
     if (userInput.trim().isEmpty) return;
     
     print('⌨️ Entrada de texto: "$userInput"');
+    
+    // Guardar entrada del usuario
+    _lastUserInput = userInput;
+    _addToConversationHistory('user', userInput);
     
     // Verificar comandos de control
     if (_isStopCommand(userInput)) {
@@ -407,6 +426,10 @@ class AppOrchestrator {
     try {
       _updateState(AppState.speaking);
       _updateStatus('Hablando...');
+      
+      // Guardar respuesta de la IA
+      _lastAIResponse = response;
+      _addToConversationHistory('assistant', response);
       
       print('🗣️ Reproduciendo respuesta: "$response"');
       await _ttsService.speak(response);
@@ -485,6 +508,91 @@ class AppOrchestrator {
       print('❌ Error deteniendo aplicación: $e');
     }
   }
+  
+  /// Agrega una entrada al historial de conversación
+  void _addToConversationHistory(String sender, String message) {
+    _conversationHistory.add({
+      'sender': sender,
+      'message': message,
+      'timestamp': DateTime.now().toIso8601String(),
+    });
+    
+    // Limitar a las últimas 50 entradas
+    if (_conversationHistory.length > 50) {
+      _conversationHistory = _conversationHistory.sublist(_conversationHistory.length - 50);
+    }
+    
+    // Notificar cambio en la conversación
+    onConversationUpdated?.call();
+  }
+  
+  /// Limpia el historial de conversación
+  void clearConversationHistory() {
+    _conversationHistory.clear();
+    _lastUserInput = '';
+    _lastAIResponse = '';
+    onConversationUpdated?.call();
+  }
+
+  // ====== NUEVOS MÉTODOS PARA MANTENER PRESIONADO ======
+  
+  /// Inicia escucha cuando se presiona el botón (mantener presionado)
+  Future<void> startListeningPressed() async {
+    try {
+      _updateState(AppState.listening);
+      _updateStatus('Escuchando... (mantén presionado)');
+      
+      print('👂 Iniciando escucha presionada...');
+      
+      // Verificar permisos
+      final hasPermission = await _speechService.hasPermission;
+      if (!hasPermission) {
+        final granted = await _speechService.requestPermission();
+        if (!granted) {
+          print('⚠️ Sin permisos de micrófono');
+          _updateState(AppState.ready);
+          _updateStatus('Sin permisos de micrófono');
+          return;
+        }
+      }
+      
+      // Iniciar escucha sin bloquear - el speech service maneja el estado interno
+      await _speechService.startListeningPressed();
+      
+    } catch (e) {
+      print('❌ Error iniciando escucha presionada: $e');
+      _updateState(AppState.ready);
+      _updateStatus('Error iniciando escucha');
+    }
+  }
+  
+  /// Detiene escucha cuando se suelta el botón
+  Future<String?> stopListeningPressed() async {
+    try {
+      print('🛑 Deteniendo escucha presionada...');
+      
+      // Detener y obtener resultado
+      final result = await _speechService.stopListening();
+      
+      _updateState(AppState.ready);
+      
+      if (result != null && result.trim().isNotEmpty) {
+        print('✅ Texto reconocido: "$result"');
+        _updateStatus('Texto reconocido: "${result.length > 30 ? result.substring(0, 30) + '...' : result}"');
+        return result;
+      } else {
+        print('⚠️ No se reconoció texto');
+        _updateStatus('No se reconoció texto. Intenta de nuevo');
+        return null;
+      }
+      
+    } catch (e) {
+      print('❌ Error deteniendo escucha presionada: $e');
+      _updateState(AppState.ready);
+      _updateStatus('Error procesando voz');
+      return null;
+    }
+  }
 
   /// Actualiza el estado de la aplicación
   void _updateState(AppState newState) {
@@ -507,12 +615,12 @@ class AppOrchestrator {
     
     _isRunning = false;
     
-    _speechService.dispose();
-    _ttsService.dispose();
+    // Los nuevos servicios no requieren dispose manual
     _locationService.dispose();
     
     onStateChanged = null;
     onError = null;
     onStatusUpdate = null;
+    onConversationUpdated = null;
   }
 }

@@ -1,65 +1,91 @@
 import 'dart:async';
-import 'dart:math';
+import 'package:flutter_tts/flutter_tts.dart';
 
-/// Servicio de Text-to-Speech con funcionalidad real progresiva
-/// Fase 1: Interfaz funcional que simula TTS sin bloquear el flujo
-/// Fase 2: Se integrará con Web Speech API o plugins compatibles
+/// Servicio de Text-to-Speech REAL usando flutter_tts plugin
 class TTSService {
   static final TTSService _instance = TTSService._internal();
   factory TTSService() => _instance;
   TTSService._internal();
 
+  late FlutterTts _flutterTts;
   bool _isInitialized = false;
   bool _isSpeaking = false;
-  
-  // Configuración realista
-  String _language = 'es-ES';
   double _speechRate = 0.5;
-  double _volume = 1.0;
+  double _volume = 0.8;
   double _pitch = 1.0;
+  String _language = 'es-ES';
 
-  // Getters públicos
+  // Getters
   bool get isInitialized => _isInitialized;
   bool get isSpeaking => _isSpeaking;
-  String get language => _language;
   double get speechRate => _speechRate;
   double get volume => _volume;
   double get pitch => _pitch;
+  String get language => _language;
 
-  /// Inicialización rápida para no bloquear el flujo
+  /// Inicializa el servicio de TTS
   Future<bool> initialize() async {
-    print("🔊 TTSService: Inicializando síntesis de voz...");
-    
-    // Inicialización muy rápida
-    await Future.delayed(const Duration(milliseconds: 150));
-    
-    _isInitialized = true;
-    
-    print("✅ TTSService: Servicio inicializado");
-    print("🌐 Idioma por defecto: $_language");
-    print("📝 Modo: Síntesis simulada para desarrollo");
-    
-    return true;
+    if (_isInitialized) return true;
+
+    try {
+      print('🔊 Inicializando TTSService...');
+      _flutterTts = FlutterTts();
+
+      // Configurar callbacks
+      _flutterTts.setStartHandler(() {
+        print('🗣️ TTS iniciado');
+        _isSpeaking = true;
+      });
+
+      _flutterTts.setCompletionHandler(() {
+        print('✅ TTS completado');
+        _isSpeaking = false;
+      });
+
+      _flutterTts.setErrorHandler((msg) {
+        print('❌ Error TTS: $msg');
+        _isSpeaking = false;
+      });
+
+      _flutterTts.setCancelHandler(() {
+        print('🛑 TTS cancelado');
+        _isSpeaking = false;
+      });
+
+      _flutterTts.setPauseHandler(() {
+        print('⏸️ TTS pausado');
+      });
+
+      _flutterTts.setContinueHandler(() {
+        print('▶️ TTS reanudado');
+      });
+
+      // Configuración inicial
+      await _flutterTts.setLanguage(_language);
+      await _flutterTts.setSpeechRate(_speechRate);
+      await _flutterTts.setVolume(_volume);
+      await _flutterTts.setPitch(_pitch);
+
+      _isInitialized = true;
+      print('✅ TTSService inicializado correctamente');
+      
+      return true;
+    } catch (e) {
+      print('❌ Error inicializando TTSService: $e');
+      return false;
+    }
   }
 
-  /// Síntesis de voz funcional que no bloquea la UI
+  /// Reproduce texto con voz
   Future<bool> speak(String text) async {
-    if (!_isInitialized) {
-      final initialized = await initialize();
-      if (!initialized) {
-        print('❌ TTSService: No se pudo inicializar');
-        return false;
-      }
-    }
-
-    if (_isSpeaking) {
-      print('⚠️ TTSService: Deteniendo reproducción anterior...');
-      await stop();
-    }
-
     if (text.trim().isEmpty) {
       print('⚠️ TTSService: Texto vacío');
       return false;
+    }
+
+    if (!_isInitialized) {
+      final initialized = await initialize();
+      if (!initialized) return false;
     }
 
     try {
@@ -68,145 +94,173 @@ class TTSService {
       
       print('🔊 TTSService: Reproduciendo: "$displayText"');
       
+      // Detener cualquier reproducción anterior
+      if (_isSpeaking) {
+        await stop();
+        await Future.delayed(const Duration(milliseconds: 100));
+      }
+      
       _isSpeaking = true;
+      final result = await _flutterTts.speak(text);
       
-      // Cálculo realista del tiempo de habla
-      // Español: ~150 palabras por minuto = ~2.5 palabras por segundo
-      final words = text.split(RegExp(r'\s+')).length;
-      final baseTime = (words / 2.5 * 1000).round(); // milisegundos
-      final adjustedTime = (baseTime / _speechRate).round();
-      
-      // Añadir variación natural (±200ms)
-      final variance = Random().nextInt(400) - 200;
-      final finalDuration = Duration(
-        milliseconds: (adjustedTime + variance).clamp(500, 10000)
-      );
-      
-      print('⏱️ TTSService: Duración estimada: ${finalDuration.inSeconds}s');
-      
-      // Simular reproducción
-      await Future.delayed(finalDuration);
-      
-      _isSpeaking = false;
-      print('✅ TTSService: Reproducción completada');
-      
-      return true;
+      if (result == 1) {
+        print('✅ TTSService: Reproducción iniciada correctamente');
+        return true;
+      } else {
+        print('❌ TTSService: Error iniciando reproducción');
+        _isSpeaking = false;
+        return false;
+      }
       
     } catch (e) {
-      print('❌ TTSService Error: $e');
+      print('❌ TTSService: Error en speak: $e');
       _isSpeaking = false;
       return false;
     }
   }
 
-  /// Control de reproducción
+  /// Detiene la reproducción
   Future<void> stop() async {
-    if (_isSpeaking) {
-      print('🛑 TTSService: Deteniendo reproducción...');
-      _isSpeaking = false;
-      await Future.delayed(const Duration(milliseconds: 50));
-    }
-  }
-
-  Future<void> pause() async {
-    if (_isSpeaking) {
-      print('⏸️ TTSService: Pausando...');
-      // En simulación, pausa = stop
-      await stop();
-    }
-  }
-
-  Future<void> resume() async {
-    print('▶️ TTSService: Resume no implementado en modo simulación');
-  }
-
-  /// Configuración de parámetros
-  Future<void> setLanguage(String language) async {
-    _language = language;
-    print('🌐 TTSService: Idioma cambiado a $language');
-  }
-
-  Future<void> setSpeechRate(double rate) async {
-    _speechRate = rate.clamp(0.1, 2.0);
-    print('⚡ TTSService: Velocidad: $_speechRate');
-  }
-
-  Future<void> setVolume(double volume) async {
-    _volume = volume.clamp(0.0, 1.0);
-    print('🔊 TTSService: Volumen: $_volume');
-  }
-
-  Future<void> setPitch(double pitch) async {
-    _pitch = pitch.clamp(0.5, 2.0);
-    print('🎵 TTSService: Tono: $_pitch');
-  }
-
-  /// Capacidades del servicio
-  Future<List<String>> getAvailableLanguages() async {
-    return [
-      'es-ES', 'es-MX', 'es-AR', 'es-CL', 'es-CO',
-      'en-US', 'en-GB', 'en-AU',
-      'fr-FR', 'de-DE', 'it-IT', 'pt-BR'
-    ];
-  }
-
-  Future<List<String>> getAvailableVoices() async {
-    return [
-      'María (España)', 'Carlos (México)', 'Ana (Argentina)',
-      'Luis (Colombia)', 'Sofia (Chile)', 'Diego (Perú)'
-    ];
-  }
-
-  Future<bool> isLanguageAvailable(String language) async {
-    final available = await getAvailableLanguages();
-    return available.contains(language);
-  }
-
-  /// Método con configuración personalizada
-  Future<bool> speakWithConfig({
-    required String text,
-    String? language,
-    double? speechRate,
-    double? volume,
-    double? pitch,
-  }) async {
-    // Guardar configuración actual
-    final originalLanguage = _language;
-    final originalRate = _speechRate;
-    final originalVolume = _volume;
-    final originalPitch = _pitch;
-
+    if (!_isInitialized) return;
+    
     try {
-      // Aplicar configuración temporal
-      if (language != null) await setLanguage(language);
-      if (speechRate != null) await setSpeechRate(speechRate);
-      if (volume != null) await setVolume(volume);
-      if (pitch != null) await setPitch(pitch);
-
-      // Hablar
-      return await speak(text);
-    } finally {
-      // Restaurar configuración
-      await setLanguage(originalLanguage);
-      await setSpeechRate(originalRate);
-      await setVolume(originalVolume);
-      await setPitch(originalPitch);
-    }
-  }
-
-  /// Limpieza de recursos
-  void dispose() {
-    print("🗑️ TTSService: Liberando recursos...");
-    if (_isSpeaking) {
+      print('🛑 TTSService: Deteniendo reproducción...');
+      await _flutterTts.stop();
       _isSpeaking = false;
+    } catch (e) {
+      print('❌ TTSService: Error deteniendo: $e');
     }
-    _isInitialized = false;
   }
-}
 
-/// Extensión futura: Implementación real
-class WebSpeechSynthesis {
-  // TODO: Implementar Web Speech Synthesis API
-  // TODO: Integrar con plugins nativos estables
-  // TODO: Soporte para voces premium
+  /// Pausa la reproducción
+  Future<void> pause() async {
+    if (!_isInitialized || !_isSpeaking) return;
+    
+    try {
+      print('⏸️ TTSService: Pausando...');
+      await _flutterTts.pause();
+    } catch (e) {
+      print('❌ TTSService: Error pausando: $e');
+    }
+  }
+
+  /// Configura el idioma
+  Future<bool> setLanguage(String language) async {
+    if (!_isInitialized) await initialize();
+    
+    try {
+      print('🌍 TTSService: Configurando idioma: $language');
+      final result = await _flutterTts.setLanguage(language);
+      if (result == 1) {
+        _language = language;
+        print('✅ TTSService: Idioma configurado');
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print('❌ TTSService: Error configurando idioma: $e');
+      return false;
+    }
+  }
+
+  /// Configura velocidad de habla
+  Future<void> setSpeechRate(double rate) async {
+    if (!_isInitialized) await initialize();
+    
+    try {
+      await _flutterTts.setSpeechRate(rate.clamp(0.0, 1.0));
+      _speechRate = rate.clamp(0.0, 1.0);
+      print('🏃 TTSService: Velocidad configurada: $_speechRate');
+    } catch (e) {
+      print('❌ TTSService: Error configurando velocidad: $e');
+    }
+  }
+
+  /// Configura volumen
+  Future<void> setVolume(double volume) async {
+    if (!_isInitialized) await initialize();
+    
+    try {
+      await _flutterTts.setVolume(volume.clamp(0.0, 1.0));
+      _volume = volume.clamp(0.0, 1.0);
+      print('🔊 TTSService: Volumen configurado: $_volume');
+    } catch (e) {
+      print('❌ TTSService: Error configurando volumen: $e');
+    }
+  }
+
+  /// Configura tono
+  Future<void> setPitch(double pitch) async {
+    if (!_isInitialized) await initialize();
+    
+    try {
+      await _flutterTts.setPitch(pitch.clamp(0.5, 2.0));
+      _pitch = pitch.clamp(0.5, 2.0);
+      print('🎵 TTSService: Tono configurado: $_pitch');
+    } catch (e) {
+      print('❌ TTSService: Error configurando tono: $e');
+    }
+  }
+
+  /// Obtiene idiomas disponibles
+  Future<List<String>> getLanguages() async {
+    if (!_isInitialized) await initialize();
+    
+    try {
+      final languages = await _flutterTts.getLanguages;
+      if (languages != null) {
+        final languageList = List<String>.from(languages);
+        print('🌍 TTSService: Idiomas disponibles: ${languageList.take(5).join(', ')}...');
+        return languageList;
+      }
+      return [];
+    } catch (e) {
+      print('❌ TTSService: Error obteniendo idiomas: $e');
+      return [];
+    }
+  }
+
+  /// Obtiene voces disponibles
+  Future<List<Map<String, String>>> getVoices() async {
+    if (!_isInitialized) await initialize();
+    
+    try {
+      final voices = await _flutterTts.getVoices;
+      if (voices != null) {
+        final voiceList = List<Map<String, String>>.from(
+          voices.map((voice) => Map<String, String>.from(voice))
+        );
+        print('🎤 TTSService: Voces disponibles: ${voiceList.length}');
+        return voiceList;
+      }
+      return [];
+    } catch (e) {
+      print('❌ TTSService: Error obteniendo voces: $e');
+      return [];
+    }
+  }
+
+  /// Reproduce y espera a que termine
+  Future<bool> speakAndWait(String text) async {
+    if (!await speak(text)) return false;
+    
+    // Esperar hasta que termine de hablar
+    while (_isSpeaking) {
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+    
+    return true;
+  }
+
+  /// Mensajes específicos del sistema
+  Future<void> speakSystemMessage(String message) async {
+    print('📢 TTSService: Mensaje del sistema: "$message"');
+    await speak(message);
+  }
+
+  /// Respuestas de la IA
+  Future<void> speakAIResponse(String response) async {
+    print('🤖 TTSService: Respuesta IA: "${response.length > 50 ? response.substring(0, 50) + '...' : response}"');
+    await speak(response);
+  }
 }

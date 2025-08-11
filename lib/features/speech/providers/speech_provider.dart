@@ -19,7 +19,7 @@ class SpeechNotifier extends StateNotifier<AsyncValue<String?>> {
     state = const AsyncValue.loading();
     
     try {
-      final result = await _speechService.listenForCommand(prompt: prompt);
+      final result = await _speechService.startListeningPressed();
       state = AsyncValue.data(result);
     } catch (error, stackTrace) {
       state = AsyncValue.error(error, stackTrace);

@@ -18,9 +18,10 @@ dependencies:
   geolocator: ^11.0.0
   permission_handler: ^11.3.0
   
-  # Speech y TTS - Estrategia: Implementación progresiva
+  # Speech y TTS - IMPLEMENTACIÓN HÍBRIDA
+  # speech_to_text: ^6.6.0  # Temporalmente deshabilitado por problemas de compilación
+  flutter_tts: ^4.0.2
   avatar_glow: ^3.0.1  # Para efectos visuales del micrófono
-  # Se implementará funcionalidad real paso a paso
   
   # Mapas
   flutter_map: ^6.1.0

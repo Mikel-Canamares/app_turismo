@@ -7,6 +7,7 @@ import '../../core/services/app_orchestrator.dart';
 import 'text_input_dialog.dart';
 import '../../core/providers/app_provider.dart';
 import '../../features/poi/models/poi_model.dart';
+import 'conversation_panel.dart';
 
 class MapWithVoiceScreen extends ConsumerStatefulWidget {
   const MapWithVoiceScreen({super.key});
@@ -89,6 +90,88 @@ class _MapWithVoiceScreenState extends ConsumerState<MapWithVoiceScreen>
     );
   }
 
+  // ====== NUEVOS MÉTODOS PARA MANTENER PRESIONADO ======
+  void _startListeningPressed(AppOrchestrator orchestrator) async {
+    try {
+      print('🎤 Iniciando escucha con botón presionado...');
+      
+      // Acceder al SpeechService a través del orchestrator
+      // (necesitaríamos exponer el service o crear un método público)
+      await orchestrator.startListeningPressed();
+      
+    } catch (e) {
+      print('❌ Error iniciando escucha presionada: $e');
+    }
+  }
+  
+  void _stopListeningPressed(AppOrchestrator orchestrator) async {
+    try {
+      print('🎤 Deteniendo escucha al soltar botón...');
+      
+      final result = await orchestrator.stopListeningPressed();
+      
+      if (result != null && result.trim().isNotEmpty) {
+        print('📝 Texto reconocido/generado: "$result"');
+        // Procesar directamente con el orchestrator
+        await orchestrator.processTextInput(result);
+      } else {
+        print('⚠️ No se reconoció/generó texto - Mostrando opciones');
+        _showSpeechOptions(orchestrator);
+      }
+      
+    } catch (e) {
+      print('❌ Error deteniendo escucha presionada: $e');
+    }
+  }
+
+  void _showSpeechOptions(AppOrchestrator orchestrator) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('¿Qué quieres saber?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('No se detectó voz. Elige una opción:'),
+            const SizedBox(height: 16),
+            _buildQuickQuestionButton(orchestrator, "¿Qué puedo visitar aquí?"),
+            _buildQuickQuestionButton(orchestrator, "Cuéntame sobre este lugar"),
+            _buildQuickQuestionButton(orchestrator, "¿Qué hay de interesante?"),
+            _buildQuickQuestionButton(orchestrator, "¿Dónde puedo comer?"),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _showTextInput(orchestrator);
+              },
+              child: const Text('Escribir pregunta personalizada'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancelar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickQuestionButton(AppOrchestrator orchestrator, String question) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ElevatedButton(
+        onPressed: () {
+          Navigator.of(context).pop();
+          orchestrator.processTextInput(question);
+        },
+        child: Text(question, textAlign: TextAlign.center),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _pulseController.dispose();
@@ -107,34 +190,47 @@ class _MapWithVoiceScreenState extends ConsumerState<MapWithVoiceScreen>
     
     return Scaffold(
       body: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            // Header con estado actual
-            _buildHeader(appState),
-            
-            // Mapa principal
-            Expanded(
-              flex: 3,
-              child: _buildMap(),
-            ),
-            
-            // Panel de estado y controles
-            Expanded(
-              flex: 1,
-              child: Container(
-                width: double.infinity,
-                color: _getBackgroundColor(appState).withOpacity(0.9),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      _buildStatusPanel(appState),
-                      const SizedBox(height: 16),
-                      _buildVoiceControls(appState),
-                    ],
+            // Contenido principal
+            Column(
+              children: [
+                // Header con estado actual
+                _buildHeader(appState),
+                
+                // Mapa principal
+                Expanded(
+                  flex: 3,
+                  child: _buildMap(),
+                ),
+                
+                // Panel de estado y controles
+                Expanded(
+                  flex: 1,
+                  child: Container(
+                    width: double.infinity,
+                    color: _getBackgroundColor(appState).withValues(alpha: 0.9),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        children: [
+                          _buildStatusPanel(appState),
+                          const SizedBox(height: 16),
+                          _buildVoiceControls(appState),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-              ),
+              ],
+            ),
+            
+            // Panel de conversación superpuesto
+            Positioned(
+              bottom: 140,
+              left: 0,
+              right: 0,
+              child: const ConversationPanel(),
             ),
           ],
         ),
@@ -224,20 +320,27 @@ class _MapWithVoiceScreenState extends ConsumerState<MapWithVoiceScreen>
             // Marcadores de POIs
             ..._nearbyPOIs.map((poi) => Marker(
               point: LatLng(poi.latitude, poi.longitude),
-              width: 30,
-              height: 30,
+              width: 35,
+              height: 35,
               child: GestureDetector(
                 onTap: () => _showPOIInfo(poi),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.red,
+                    color: _getPOIColor(poi.typeInSpanish),
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                  child: const Icon(
-                    Icons.place,
+                  child: Icon(
+                    _getPOIIcon(poi.typeInSpanish),
                     color: Colors.white,
-                    size: 16,
+                    size: 18,
                   ),
                 ),
               ),
@@ -356,6 +459,15 @@ class _MapWithVoiceScreenState extends ConsumerState<MapWithVoiceScreen>
                 ? () => appStateNotifier.stopApp()
                 : null,
           ),
+          
+        // Botón limpiar conversación
+        _buildControlButton(
+          icon: Icons.clear_all,
+          label: 'Limpiar',
+          onPressed: state != AppState.initializing
+              ? () => orchestrator.clearConversationHistory()
+              : null,
+        ),
       ],
     );
   }
@@ -378,21 +490,25 @@ class _MapWithVoiceScreenState extends ConsumerState<MapWithVoiceScreen>
           child: Transform.scale(
             scale: scale,
             child: GestureDetector(
-            onTap: !canInteract ? null : () {
-              print('🎤 Botón micrófono presionado - Estado: $state, En conversación: $isInConversation');
+              // MANTENER PRESIONADO PARA HABLAR
+              onTapDown: !canInteract ? null : (_) {
+                print('🎤 Iniciando escucha (mantener presionado)...');
+                _startListeningPressed(orchestrator);
+              },
+              onTapUp: !canInteract ? null : (_) {
+                print('🎤 Finalizando escucha (soltar botón)...');
+                _stopListeningPressed(orchestrator);
+              },
+              onTapCancel: () {
+                print('🎤 Cancelando escucha...');
+                _stopListeningPressed(orchestrator);
+              },
               
-              if (isInConversation) {
-                // Si está en conversación, terminarla
-                appStateNotifier.stopConversation();
-              } else {
-                // Si no está en conversación, iniciarla
-                _startConversationWithOptions(appStateNotifier, orchestrator);
-              }
-            },
-            onLongPress: !canInteract ? null : () {
-              // Long press para entrada de texto directa
-              _showTextInput(orchestrator);
-            },
+              // LONG PRESS PARA ENTRADA DE TEXTO
+              onLongPress: !canInteract ? null : () {
+                print('🎤 Long press - Entrada de texto');
+                _showTextInput(orchestrator);
+              },
             child: Container(
               width: 60,
               height: 60,
@@ -533,6 +649,76 @@ class _MapWithVoiceScreenState extends ConsumerState<MapWithVoiceScreen>
         return Colors.indigo[700]!;
       case AppState.error:
         return Colors.red[700]!;
+    }
+  }
+
+  // ====== MÉTODOS PARA POIs EN EL MAPA ======
+  
+  Color _getPOIColor(String type) {
+    switch (type.toLowerCase()) {
+      case 'museo':
+      case 'museum':
+        return Colors.purple[600]!;
+      case 'iglesia':
+      case 'catedral':
+      case 'church':
+        return Colors.brown[600]!;
+      case 'parque':
+      case 'park':
+        return Colors.green[600]!;
+      case 'restaurante':
+      case 'restaurant':
+        return Colors.orange[600]!;
+      case 'hotel':
+        return Colors.blue[600]!;
+      case 'monumento':
+      case 'monument':
+        return Colors.grey[600]!;
+      case 'teatro':
+      case 'theatre':
+        return Colors.red[600]!;
+      case 'mercado':
+      case 'market':
+        return Colors.yellow[700]!;
+      case 'playa':
+      case 'beach':
+        return Colors.cyan[600]!;
+      default:
+        return Colors.red[600]!;
+    }
+  }
+  
+  IconData _getPOIIcon(String type) {
+    switch (type.toLowerCase()) {
+      case 'museo':
+      case 'museum':
+        return Icons.museum;
+      case 'iglesia':
+      case 'catedral':
+      case 'church':
+        return Icons.church;
+      case 'parque':
+      case 'park':
+        return Icons.park;
+      case 'restaurante':
+      case 'restaurant':
+        return Icons.restaurant;
+      case 'hotel':
+        return Icons.hotel;
+      case 'monumento':
+      case 'monument':
+        return Icons.account_balance;
+      case 'teatro':
+      case 'theatre':
+        return Icons.theater_comedy;
+      case 'mercado':
+      case 'market':
+        return Icons.store;
+      case 'playa':
+      case 'beach':
+        return Icons.beach_access;
+      default:
+        return Icons.place;
     }
   }
 

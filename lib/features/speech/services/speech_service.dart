@@ -1,183 +1,194 @@
 import 'dart:async';
 import 'dart:math';
 
-/// Servicio de Speech-to-Text con funcionalidad real progresiva
-/// Fase 1: Interfaz funcional que permite flujo completo de la app
-/// Fase 2: Se integrará con Web Speech API o plugins compatibles
+/// Servicio de Speech-to-Text HÍBRIDO (funcional para desarrollo)
+/// Simula comportamiento real de voz pero permite entrada de texto como fallback
 class SpeechService {
   static final SpeechService _instance = SpeechService._internal();
   factory SpeechService() => _instance;
   SpeechService._internal();
 
-  bool _isListening = false;
-  bool _isAvailable = true;
   bool _isInitialized = false;
-  String _lastWords = '';
-  double _confidence = 0.0;
+  bool _isListening = false;
+  String _currentLocale = 'es_ES';
+  String _lastRecognizedWords = '';
   
-  // Respuestas simuladas más realistas para desarrollo
-  final List<String> _responses = [
-    "¿Qué puedo visitar aquí?",
-    "Cuéntame sobre este lugar",
-    "¿Cuál es la historia de este sitio?",
-    "¿Qué hay de interesante cerca?",
-    "Dime más sobre esta zona",
-    "¿Hay algún museo por aquí?",
-    "¿Dónde puedo comer?",
-    "¿Qué actividades hay?",
-    "¿Hay parques cerca?",
-    "Cuéntame curiosidades",
-    "¿Cómo llego al centro?",
-    "¿Qué monumentos hay?",
-    "¿Hay tours disponibles?",
-    "¿Cuándo abre el museo?",
-    "¿Es segura esta zona?",
-    "terminar",
-    "stop",
-    "adiós"
-  ];
-  
-  // Getters públicos requeridos por la interfaz
-  bool get isInitialized => _isInitialized;
+  // Control de estado para "mantener presionado"
+  Completer<String?>? _listeningCompleter;
+  bool _hasPermission = true; // Simulamos que tenemos permisos
+
+  // Getters
   bool get isListening => _isListening;
-  bool get isAvailable => _isAvailable;
-  String get lastWords => _lastWords;
-  double get confidence => _confidence;
-  
-  /// Inicialización rápida y exitosa para no bloquear el flujo
+  bool get isInitialized => _isInitialized;
+  Future<bool> get hasPermission async => _hasPermission;
+
+  /// Inicializa el servicio de speech-to-text
   Future<bool> initialize() async {
-    print("🎤 SpeechService: Inicializando servicio de voz...");
+    if (_isInitialized) return true;
     
-    // Simulación corta para no bloquear
-    await Future.delayed(const Duration(milliseconds: 200));
-    
-    _isInitialized = true;
-    _isAvailable = true;
-    
-    print("✅ SpeechService: Servicio inicializado correctamente");
-    print("📝 Modo: Entrada simulada para desarrollo (se mejorará progresivamente)");
-    
-    return true;
+    try {
+      print('🎤 Inicializando SpeechService híbrido...');
+      
+      // Simular inicialización
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      _isInitialized = true;
+      print('✅ SpeechService híbrido inicializado correctamente');
+      return true;
+      
+    } catch (e) {
+      print('❌ Error inicializando SpeechService: $e');
+      return false;
+    }
   }
 
-  /// Verificación rápida de permisos
-  Future<bool> get hasPermission async {
-    await Future.delayed(const Duration(milliseconds: 50));
-    return true;
-  }
-
-  /// Solicitud de permisos sin bloqueo
+  /// Solicita permisos de micrófono
   Future<bool> requestPermission() async {
-    print("🔐 SpeechService: Verificando permisos de micrófono...");
-    await Future.delayed(const Duration(milliseconds: 100));
-    print("✅ SpeechService: Permisos concedidos");
-    return true;
+    if (!_isInitialized) {
+      final initialized = await initialize();
+      if (!initialized) return false;
+    }
+    
+    try {
+      print('🔐 Simulando solicitud de permisos de micrófono...');
+      await Future.delayed(const Duration(milliseconds: 300));
+      _hasPermission = true;
+      print('✅ Permisos otorgados (simulado)');
+      return true;
+    } catch (e) {
+      print('❌ Error solicitando permisos: $e');
+      return false;
+    }
   }
 
-  /// Entrada de voz simulada pero funcional
+  /// Inicia escucha (PARA MANTENER PRESIONADO)
+  Future<String?> startListeningPressed() async {
+    if (!_isInitialized) {
+      final initialized = await initialize();
+      if (!initialized) return null;
+    }
+
+    if (_isListening) {
+      print('⚠️ Ya está escuchando');
+      return null;
+    }
+
+    try {
+      print('🎤 Iniciando escucha híbrida (mantener presionado)...');
+      
+      _listeningCompleter = Completer<String?>();
+      _lastRecognizedWords = '';
+      _isListening = true;
+
+      print('👂 Escuchando... (mantén presionado o usa entrada de texto)');
+      
+      // En lugar de speech real, esperamos a que se llame stopListening
+      return await _listeningCompleter!.future;
+      
+    } catch (e) {
+      print('❌ Error iniciando escucha: $e');
+      _isListening = false;
+      _listeningCompleter?.complete(null);
+      return null;
+    }
+  }
+
+  /// Detiene escucha (AL SOLTAR EL BOTÓN)
+  Future<String?> stopListening() async {
+    if (!_isListening) return _lastRecognizedWords.isNotEmpty ? _lastRecognizedWords : null;
+
+    try {
+      print('🛑 Deteniendo escucha híbrida...');
+      
+      _isListening = false;
+      
+      // Simular reconocimiento de voz con frases de ejemplo
+      final result = _generateSimulatedSpeech();
+      _lastRecognizedWords = result;
+      
+      _listeningCompleter?.complete(result);
+      
+      if (result.isNotEmpty) {
+        print('✅ Texto simulado generado: "$result"');
+      } else {
+        print('⚠️ No se generó texto');
+      }
+      
+      return result;
+    } catch (e) {
+      print('❌ Error deteniendo escucha: $e');
+      _listeningCompleter?.complete(null);
+      return null;
+    }
+  }
+
+  /// Cancela la escucha
+  Future<void> cancel() async {
+    if (!_isListening) return;
+    
+    try {
+      print('❌ Cancelando escucha híbrida...');
+      _isListening = false;
+      _listeningCompleter?.complete(null);
+    } catch (e) {
+      print('❌ Error cancelando escucha: $e');
+    }
+  }
+
+  /// Genera texto simulado de speech (para desarrollo)
+  String _generateSimulatedSpeech() {
+    final random = Random();
+    final questions = [
+      "¿Qué puedo visitar aquí?",
+      "Cuéntame sobre este lugar",
+      "¿Cuál es la historia de este sitio?",
+      "¿Qué hay de interesante cerca?",
+      "Dime más sobre esta zona",
+      "¿Hay algún museo por aquí?",
+      "¿Dónde puedo comer?",
+      "¿Qué actividades hay?",
+      "¿Hay parques cerca?",
+      "Cuéntame curiosidades del lugar",
+      "¿Cómo llego al centro?",
+      "¿Qué monumentos hay?",
+      "¿Hay iglesias históricas?",
+      "¿Dónde está la oficina de turismo?",
+      "¿Qué eventos hay hoy?",
+    ];
+    
+    // 90% probabilidad de generar una pregunta válida
+    if (random.nextDouble() < 0.9) {
+      return questions[random.nextInt(questions.length)];
+    } else {
+      return ""; // Simular que no se escuchó nada
+    }
+  }
+
+  /// Obtiene idiomas disponibles (simulado)
+  Future<List<dynamic>> getAvailableLocales() async {
+    return [
+      {'localeId': 'es_ES', 'name': 'Español (España)'},
+      {'localeId': 'es_MX', 'name': 'Español (México)'},
+      {'localeId': 'en_US', 'name': 'English (US)'},
+    ];
+  }
+
+  /// Método de compatibilidad para startListening
   Future<String?> startListening({
     Duration? listenFor,
     Duration? pauseFor,
-    String localeId = 'es-ES',
+    String? localeId,
   }) async {
-    if (_isListening) {
-      print("⚠️ SpeechService: Ya está escuchando");
-      return null;
-    }
-    
-    print("🎤 SpeechService: Iniciando escucha...");
-    print("🎯 Simulando entrada de voz (2-4 segundos)");
-    
-    _isListening = true;
-    
-    try {
-      // Tiempo de escucha realista pero no excesivo
-      final duration = 2000 + Random().nextInt(2000); // 2-4 segundos
-      await Future.delayed(Duration(milliseconds: duration));
-      
-      // 90% de éxito, 10% sin detectar (realista)
-      if (Random().nextInt(10) == 0) {
-        print("⚠️ SpeechService: No se detectó entrada");
-        _isListening = false;
-        return null;
-      }
-      
-      // Respuesta aleatoria pero coherente
-      final randomIndex = Random().nextInt(_responses.length);
-      _lastWords = _responses[randomIndex];
-      _confidence = 0.85 + (Random().nextDouble() * 0.15); // 85-100%
-      
-      print("🗣️ Entrada detectada: '$_lastWords'");
-      print("📊 Confianza: ${(_confidence * 100).toStringAsFixed(1)}%");
-      
+    return await startListeningPressed();
+  }
+
+  /// Método para inyección manual de texto (para testing)
+  void injectText(String text) {
+    if (_isListening && _listeningCompleter != null && !_listeningCompleter!.isCompleted) {
+      _lastRecognizedWords = text;
       _isListening = false;
-      return _lastWords;
-      
-    } catch (e) {
-      print("❌ SpeechService Error: $e");
-      _isListening = false;
-      return null;
+      _listeningCompleter!.complete(text);
+      print('💉 Texto inyectado: "$text"');
     }
   }
-
-  /// Control de escucha
-  Future<void> stopListening() async {
-    if (_isListening) {
-      print("🛑 SpeechService: Deteniendo escucha...");
-      _isListening = false;
-      await Future.delayed(const Duration(milliseconds: 100));
-    }
-  }
-
-  /// Cancelación limpia
-  Future<void> cancel() async {
-    if (_isListening) {
-      print("❌ SpeechService: Cancelando escucha...");
-      _isListening = false;
-      _lastWords = '';
-      _confidence = 0.0;
-      await Future.delayed(const Duration(milliseconds: 50));
-    }
-  }
-
-  /// Idiomas soportados
-  Future<List<String>> getAvailableLocales() async {
-    return ['es-ES', 'es-MX', 'en-US', 'en-GB', 'fr-FR', 'de-DE', 'it-IT'];
-  }
-
-  /// Método conveniente para comandos
-  Future<String?> listenForCommand({
-    String? prompt,
-    Duration timeout = const Duration(seconds: 10),
-    String localeId = 'es-ES',
-  }) async {
-    if (prompt != null) {
-      print('💭 Esperando comando: $prompt');
-    }
-    
-    return await startListening(
-      listenFor: timeout,
-      pauseFor: const Duration(seconds: 2),
-      localeId: localeId,
-    );
-  }
-
-  /// Limpieza de recursos
-  void dispose() {
-    print("🗑️ SpeechService: Liberando recursos...");
-    if (_isListening) {
-      _isListening = false;
-    }
-    _isInitialized = false;
-    _lastWords = '';
-    _confidence = 0.0;
-  }
-}
-
-/// Extensión futura: Implementación real con Web Speech API
-/// Esto permitirá funcionalidad real en navegadores y dispositivos compatibles
-class WebSpeechRecognition {
-  // TODO: Implementar Web Speech API para navegadores
-  // TODO: Integrar con plugins nativos estables cuando estén disponibles
-  // TODO: Fallback inteligente según plataforma
 }
