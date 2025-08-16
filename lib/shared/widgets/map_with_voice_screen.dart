@@ -94,11 +94,7 @@ class _MapWithVoiceScreenState extends ConsumerState<MapWithVoiceScreen>
   void _startListeningPressed(AppOrchestrator orchestrator) async {
     try {
       print('🎤 Iniciando escucha con botón presionado...');
-      
-      // Acceder al SpeechService a través del orchestrator
-      // (necesitaríamos exponer el service o crear un método público)
       await orchestrator.startListeningPressed();
-      
     } catch (e) {
       print('❌ Error iniciando escucha presionada: $e');
     }
@@ -111,11 +107,11 @@ class _MapWithVoiceScreenState extends ConsumerState<MapWithVoiceScreen>
       final result = await orchestrator.stopListeningPressed();
       
       if (result != null && result.trim().isNotEmpty) {
-        print('📝 Texto reconocido/generado: "$result"');
+        print('📝 Texto reconocido: "$result"');
         // Procesar directamente con el orchestrator
         await orchestrator.processTextInput(result);
       } else {
-        print('⚠️ No se reconoció/generó texto - Mostrando opciones');
+        print('⚠️ No se reconoció texto - Mostrando opciones');
         _showSpeechOptions(orchestrator);
       }
       

@@ -402,6 +402,13 @@ class AppOrchestrator {
       
       print('🤖 Generando respuesta para: "$userInput"');
       
+      // Garantizar que la posición esté fresca (no más de 10s de antigüedad)
+      if (_currentPosition == null || DateTime.now().millisecondsSinceEpoch - 
+          (_currentPosition?.timestamp.millisecondsSinceEpoch ?? 0) > 10000) {
+        print('📍 Actualizando ubicación antes de procesar...');
+        await updateLocation();
+      }
+      
       final response = await _aiService.generateTourismResponse(
         userQuestion: userInput,
         userPosition: _currentPosition,
