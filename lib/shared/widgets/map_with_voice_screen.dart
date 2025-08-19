@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:avatar_glow/avatar_glow.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../core/services/app_orchestrator.dart';
 import 'text_input_dialog.dart';
 import '../../core/providers/app_provider.dart';
@@ -91,20 +92,23 @@ class _MapWithVoiceScreenState extends ConsumerState<MapWithVoiceScreen>
   }
 
   // ====== NUEVOS MÉTODOS PARA MANTENER PRESIONADO ======
-  void _startListeningPressed(AppOrchestrator orchestrator) async {
+  void _startListeningPressed(AppStateNotifier appStateNotifier) async {
     try {
       print('🎤 Iniciando escucha con botón presionado...');
-      await orchestrator.startListeningPressed();
+      final started = await appStateNotifier.startListeningPressed();
+      if (!started) {
+        print('⚠️ No se pudo iniciar escucha');
+      }
     } catch (e) {
       print('❌ Error iniciando escucha presionada: $e');
     }
   }
   
-  void _stopListeningPressed(AppOrchestrator orchestrator) async {
+  void _stopListeningPressed(AppStateNotifier appStateNotifier, AppOrchestrator orchestrator) async {
     try {
       print('🎤 Deteniendo escucha al soltar botón...');
       
-      final result = await orchestrator.stopListeningPressed();
+      final result = await appStateNotifier.stopListeningPressed();
       
       if (result != null && result.trim().isNotEmpty) {
         print('📝 Texto reconocido: "$result"');
@@ -172,6 +176,11 @@ class _MapWithVoiceScreenState extends ConsumerState<MapWithVoiceScreen>
   void dispose() {
     _pulseController.dispose();
     super.dispose();
+  }
+
+  /// Obtiene la API key de Geoapify desde las variables de entorno
+  String _getGeoapifyApiKey() {
+    return dotenv.env['GEOAPIFY_API_KEY'] ?? '';
   }
 
   @override
@@ -290,7 +299,7 @@ class _MapWithVoiceScreenState extends ConsumerState<MapWithVoiceScreen>
       ),
       children: [
         TileLayer(
-          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+          urlTemplate: 'https://maps.geoapify.com/v1/tile/osm-carto/{z}/{x}/{y}.png?apiKey=${_getGeoapifyApiKey()}',
           userAgentPackageName: 'com.example.turismo_ai',
         ),
         MarkerLayer(
@@ -489,15 +498,15 @@ class _MapWithVoiceScreenState extends ConsumerState<MapWithVoiceScreen>
               // MANTENER PRESIONADO PARA HABLAR
               onTapDown: !canInteract ? null : (_) {
                 print('🎤 Iniciando escucha (mantener presionado)...');
-                _startListeningPressed(orchestrator);
+                _startListeningPressed(appStateNotifier);
               },
               onTapUp: !canInteract ? null : (_) {
                 print('🎤 Finalizando escucha (soltar botón)...');
-                _stopListeningPressed(orchestrator);
+                _stopListeningPressed(appStateNotifier, orchestrator);
               },
               onTapCancel: () {
                 print('🎤 Cancelando escucha...');
-                _stopListeningPressed(orchestrator);
+                _stopListeningPressed(appStateNotifier, orchestrator);
               },
               
               // LONG PRESS PARA ENTRADA DE TEXTO

@@ -38,6 +38,15 @@ class AppStateNotifier extends StateNotifier<AppState> {
     await _orchestrator.stopConversation();
   }
 
+  // ====== NUEVOS MÉTODOS PARA MANTENER PRESIONADO ======
+  Future<bool> startListeningPressed() async {
+    return await _orchestrator.startListeningPressed();
+  }
+
+  Future<String?> stopListeningPressed() async {
+    return await _orchestrator.stopListeningPressed();
+  }
+
   bool get isInConversation => _orchestrator.isInConversation;
 
   @override

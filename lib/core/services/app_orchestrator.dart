@@ -128,19 +128,27 @@ class AppOrchestrator {
   /// Inicializa todos los servicios
   Future<void> _initializeServices() async {
     try {
+      print('🔧 Inicializando servicios...');
+      
       // Inicializar servicios en paralelo donde sea posible
       await Future.wait([
         _ttsService.initialize(),
         _speechService.initialize(),
       ]);
 
+      print('✅ TTS y Speech services inicializados');
+
       // Inicializar servicios que necesitan configuración
+      print('🔧 Inicializando POI Service...');
       _poiService.initialize();
+      
+      print('🔧 Inicializando AI Service...');
       _aiService.initialize();
 
       print('✅ Servicios inicializados correctamente');
     } catch (e) {
       print('❌ Error inicializando servicios: $e');
+      print('❌ Stack trace: ${e.toString()}');
       rethrow;
     }
   }
@@ -201,20 +209,23 @@ class AppOrchestrator {
 
       print('🔍 Buscando POIs cercanos...');
       
-      // Buscar el POI más interesante
+      // Buscar el POI más interesante (radio ampliado)
       _currentPOI = await _poiService.findMostInterestingNearbyPOI(
         latitude: _currentPosition!.latitude,
         longitude: _currentPosition!.longitude,
-        radius: 1000,
+        radius: 2000, // Aumentado a 2km
       );
 
-      // Buscar POIs adicionales
+      // Buscar POIs adicionales (radio ampliado)
       _nearbyPOIs = await _poiService.findNearbyPOIs(
         latitude: _currentPosition!.latitude,
         longitude: _currentPosition!.longitude,
-        radius: 1000,
-        limit: 10,
+        radius: 2000, // Aumentado a 2km
+        limit: 15,   // Más POIs
       );
+      
+      print('📍 Ubicación actual: ${_currentPosition!.latitude.toStringAsFixed(6)}, ${_currentPosition!.longitude.toStringAsFixed(6)}');
+      print('🔍 POIs encontrados: ${_nearbyPOIs.length}');
 
       if (_currentPOI != null) {
         print('✅ POI principal encontrado: ${_currentPOI!.name}');
@@ -544,7 +555,7 @@ class AppOrchestrator {
   // ====== NUEVOS MÉTODOS PARA MANTENER PRESIONADO ======
   
   /// Inicia escucha cuando se presiona el botón (mantener presionado)
-  Future<void> startListeningPressed() async {
+  Future<bool> startListeningPressed() async {
     try {
       _updateState(AppState.listening);
       _updateStatus('Escuchando... (mantén presionado)');
@@ -559,17 +570,27 @@ class AppOrchestrator {
           print('⚠️ Sin permisos de micrófono');
           _updateState(AppState.ready);
           _updateStatus('Sin permisos de micrófono');
-          return;
+          return false;
         }
       }
       
-      // Iniciar escucha sin bloquear - el speech service maneja el estado interno
-      await _speechService.startListeningPressed();
+      // Iniciar grabación
+      final started = await _speechService.startListeningPressed();
+      
+      if (!started) {
+        print('❌ No se pudo iniciar grabación');
+        _updateState(AppState.ready);
+        _updateStatus('Error iniciando grabación');
+        return false;
+      }
+      
+      return true;
       
     } catch (e) {
       print('❌ Error iniciando escucha presionada: $e');
       _updateState(AppState.ready);
       _updateStatus('Error iniciando escucha');
+      return false;
     }
   }
   
@@ -578,17 +599,21 @@ class AppOrchestrator {
     try {
       print('🛑 Deteniendo escucha presionada...');
       
+      // IMPORTANTE: Cambiar estado inmediatamente para que la UI responda
+      _updateState(AppState.processing);
+      _updateStatus('Procesando audio...');
+      
       // Detener y obtener resultado
       final result = await _speechService.stopListening();
-      
-      _updateState(AppState.ready);
       
       if (result != null && result.trim().isNotEmpty) {
         print('✅ Texto reconocido: "$result"');
         _updateStatus('Texto reconocido: "${result.length > 30 ? result.substring(0, 30) + '...' : result}"');
+        _updateState(AppState.ready);
         return result;
       } else {
         print('⚠️ No se reconoció texto');
+        _updateState(AppState.ready);
         _updateStatus('No se reconoció texto. Intenta de nuevo');
         return null;
       }

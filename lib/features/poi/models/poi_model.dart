@@ -37,10 +37,22 @@ class PointOfInterest {
 
   // Helper para obtener tipo de lugar en español
   String get typeInSpanish {
+    // Categorías de Geoapify
+    if (category.contains('tourism.attraction')) return 'Atracción turística';
+    if (category.contains('leisure.park')) return 'Parque';
+    if (category.contains('cultural.museum')) return 'Museo';
+    if (category.contains('historic')) return 'Sitio histórico';
+    if (category.contains('architecture')) return 'Edificio histórico';
+    if (category.contains('religion')) return 'Lugar religioso';
+    if (category.contains('sport')) return 'Instalación deportiva';
+    if (category.contains('entertainment')) return 'Entretenimiento';
+    if (category.contains('food')) return 'Restaurante';
+    if (category.contains('shopping')) return 'Centro comercial';
+    
+    // Categorías legacy de OpenTripMap (mantenidas para compatibilidad)
     if (category.contains('museums')) return 'Museo';
     if (category.contains('churches')) return 'Iglesia';
     if (category.contains('monuments')) return 'Monumento';
-    if (category.contains('architecture')) return 'Edificio histórico';
     if (category.contains('parks')) return 'Parque';
     if (category.contains('restaurants')) return 'Restaurante';
     if (category.contains('theatres')) return 'Teatro';
@@ -48,12 +60,9 @@ class PointOfInterest {
     if (category.contains('bridges')) return 'Puente';
     if (category.contains('towers')) return 'Torre';
     if (category.contains('cultural')) return 'Sitio cultural';
-    if (category.contains('historic')) return 'Sitio histórico';
     if (category.contains('natural')) return 'Lugar natural';
-    if (category.contains('religion')) return 'Lugar religioso';
-    if (category.contains('sport')) return 'Instalación deportiva';
-    if (category.contains('entertainment')) return 'Entretenimiento';
     if (category.contains('tourist_facilities')) return 'Instalación turística';
+    
     return 'Lugar de interés';
   }
 

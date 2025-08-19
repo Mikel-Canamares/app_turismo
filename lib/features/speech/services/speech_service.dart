@@ -83,20 +83,20 @@ class SpeechService {
   }
 
   /// Inicia grabación (PARA MANTENER PRESIONADO)
-  Future<String?> startListeningPressed() async {
+  Future<bool> startListeningPressed() async {
     if (!_isInitialized) {
       final initialized = await initialize();
-      if (!initialized) return null;
+      if (!initialized) return false;
     }
 
     if (_isListening) {
       print('⚠️ Ya está grabando');
-      return null;
+      return false;
     }
 
     if (!_hasPermission) {
       final granted = await requestPermission();
-      if (!granted) return null;
+      if (!granted) return false;
     }
 
     try {
@@ -107,7 +107,6 @@ class SpeechService {
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       _currentRecordingPath = '${tempDir.path}/speech_$timestamp.m4a';
       
-      _listeningCompleter = Completer<String?>();
       _isListening = true;
 
       // Configurar y iniciar grabación en M4A (compatible con Whisper)
@@ -121,13 +120,12 @@ class SpeechService {
       );
 
       print('🔴 Grabando audio... (mantén presionado)');
-      return await _listeningCompleter!.future;
+      return true;
       
     } catch (e) {
       print('❌ Error iniciando grabación: $e');
       _isListening = false;
-      _listeningCompleter?.complete(null);
-      return null;
+      return false;
     }
   }
 
@@ -233,6 +231,7 @@ class SpeechService {
         'response_format': 'text',
       });
 
+      // TIMEOUT DE SEGURIDAD: máximo 15 segundos
       final response = await _dio.post(
         'https://api.openai.com/v1/audio/transcriptions',
         data: formData,
@@ -241,9 +240,15 @@ class SpeechService {
             'Authorization': 'Bearer $apiKey',
             'Content-Type': 'multipart/form-data',
           },
-          receiveTimeout: const Duration(seconds: 30),
-          sendTimeout: const Duration(seconds: 30),
+          receiveTimeout: const Duration(seconds: 15),
+          sendTimeout: const Duration(seconds: 15),
         ),
+      ).timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          print('⏰ Timeout en transcripción Whisper');
+          throw TimeoutException('Whisper API timeout', const Duration(seconds: 15));
+        },
       );
 
       if (response.statusCode == 200) {
@@ -276,7 +281,12 @@ class SpeechService {
     Duration? pauseFor,
     String? localeId,
   }) async {
-    return await startListeningPressed();
+    final started = await startListeningPressed();
+    if (!started) return null;
+    
+    // Para compatibilidad, simular escucha automática
+    await Future.delayed(const Duration(seconds: 3));
+    return await stopListening();
   }
 
   /// Verifica si está disponible la transcripción

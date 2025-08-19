@@ -99,13 +99,14 @@ PREGUNTA DEL USUARIO: "$userQuestion"
 
 INSTRUCCIONES:
 1. Responde de manera conversacional y natural en español
-2. Si la pregunta está relacionada con el lugar cercano, proporciona información detallada
-3. Si pregunta sobre otros lugares, da información útil y sugiere lugares cercanos
-4. Incluye datos interesantes, historia, recomendaciones prácticas
-5. Mantén un tono entusiasta pero informativo
-6. Si no tienes información específica, sé honesto pero sugiere alternativas
-7. Limita tu respuesta a máximo 4-5 frases para que sea conversacional
-8. Termina invitando a hacer más preguntas si es apropiado
+2. USA ÚNICAMENTE la información de los lugares cercanos proporcionados en el contexto
+3. NO inventes lugares que no están en la lista de POIs cercanos
+4. Si no hay lugares interesantes cercanos, dilo honestamente
+5. Menciona SOLO lugares que estén dentro del radio de búsqueda proporcionado
+6. Incluye las distancias exactas mencionadas en el contexto
+7. Mantén un tono entusiasta pero informativo
+8. Limita tu respuesta a máximo 4-5 frases para que sea conversacional
+9. Si no tienes información específica de la zona, sugiere usar la entrada de texto para preguntas más específicas
 
 Responde como si fueras un guía turístico local experimentado hablando en persona.
 ''';
@@ -210,14 +211,18 @@ Responde como si fueras un guía turístico local experimentado hablando en pers
     final context = StringBuffer();
     
     if (userPosition != null) {
-      context.writeln('Ubicación del usuario: ${userPosition.latitude.toStringAsFixed(6)}, ${userPosition.longitude.toStringAsFixed(6)}');
+      context.writeln('UBICACIÓN EXACTA DEL USUARIO:');
+      context.writeln('- Coordenadas GPS: ${userPosition.latitude.toStringAsFixed(6)}, ${userPosition.longitude.toStringAsFixed(6)}');
+      context.writeln('- Radio de búsqueda: 2 kilómetros');
+      context.writeln('');
     }
 
     if (contextPOI != null) {
-      context.writeln('Lugar principal cercano:');
+      context.writeln('LUGAR PRINCIPAL MÁS CERCANO:');
       context.writeln('- Nombre: ${contextPOI.name}');
       context.writeln('- Tipo: ${contextPOI.typeInSpanish}');
-      context.writeln('- Distancia: ${contextPOI.distance < 1000 ? "${contextPOI.distance.toStringAsFixed(0)}m" : "${(contextPOI.distance/1000).toStringAsFixed(1)}km"}');
+      context.writeln('- Distancia EXACTA: ${contextPOI.distance < 1000 ? "${contextPOI.distance.toStringAsFixed(0)} metros" : "${(contextPOI.distance/1000).toStringAsFixed(1)} kilómetros"}');
+      context.writeln('- Coordenadas: ${contextPOI.latitude.toStringAsFixed(6)}, ${contextPOI.longitude.toStringAsFixed(6)}');
       
       if (contextPOI.description.isNotEmpty) {
         context.writeln('- Descripción: ${contextPOI.description}');
@@ -226,14 +231,20 @@ Responde como si fueras un guía turístico local experimentado hablando en pers
       if (contextPOI.address.isNotEmpty) {
         context.writeln('- Dirección: ${contextPOI.address}');
       }
+      context.writeln('');
     }
 
     if (nearbyPOIs != null && nearbyPOIs.isNotEmpty) {
-      context.writeln('Otros lugares cercanos:');
-      for (int i = 0; i < nearbyPOIs.length && i < 3; i++) {
+      context.writeln('LISTA COMPLETA DE LUGARES CERCANOS (dentro de 2km):');
+      for (int i = 0; i < nearbyPOIs.length && i < 5; i++) {
         final poi = nearbyPOIs[i];
-        context.writeln('- ${poi.name} (${poi.typeInSpanish}) a ${poi.distance < 1000 ? "${poi.distance.toStringAsFixed(0)}m" : "${(poi.distance/1000).toStringAsFixed(1)}km"}');
+        context.writeln('${i + 1}. ${poi.name} (${poi.typeInSpanish}) - ${poi.distance < 1000 ? "${poi.distance.toStringAsFixed(0)}m" : "${(poi.distance/1000).toStringAsFixed(1)}km"}');
       }
+      context.writeln('');
+      context.writeln('IMPORTANTE: Responde SOLO sobre estos lugares específicos. NO menciones lugares que no estén en esta lista.');
+    } else {
+      context.writeln('ATENCIÓN: No se encontraron lugares de interés turístico dentro de 2 kilómetros de la ubicación actual.');
+      context.writeln('Informa al usuario que no hay POIs cercanos y sugiere que pregunte sobre algo específico.');
     }
 
     return context.toString();

@@ -6,12 +6,32 @@ import 'shared/widgets/map_with_voice_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  print('🚀 Iniciando Turismo AI...');
+  
   try {
-    // Cargar archivo .env de forma asíncrona pero no bloquear UI
+    // Cargar archivo .env
     await dotenv.load(fileName: ".env");
+    print('✅ Archivo .env cargado correctamente');
+    
+    // Verificar API keys
+    final geoapifyKey = dotenv.env['GEOAPIFY_API_KEY'];
+    final openaiKey = dotenv.env['OPENAI_API_KEY'];
+    
+    if (geoapifyKey != null && geoapifyKey.isNotEmpty) {
+      print('✅ API Key de Geoapify encontrada');
+    } else {
+      print('⚠️ API Key de Geoapify no encontrada en .env');
+    }
+    
+    if (openaiKey != null && openaiKey.isNotEmpty) {
+      print('✅ API Key de OpenAI encontrada');
+    } else {
+      print('⚠️ API Key de OpenAI no encontrada en .env');
+    }
+    
   } catch (e) {
-    print('Error cargando .env: $e');
-    // Continuar sin .env para debug
+    print('❌ Error cargando .env: $e');
+    print('⚠️ API Keys no configuradas - crea un archivo .env');
   }
   
   runApp(
