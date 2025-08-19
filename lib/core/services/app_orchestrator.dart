@@ -148,8 +148,9 @@ class AppOrchestrator {
       print('✅ Servicios inicializados correctamente');
     } catch (e) {
       print('❌ Error inicializando servicios: $e');
-      print('❌ Stack trace: ${e.toString()}');
-      rethrow;
+      print('❌ Stack trace: $e');
+      // No rethrow para evitar que la app falle completamente
+      // En su lugar, continuar con servicios básicos
     }
   }
 

@@ -15,11 +15,16 @@ class AIService {
 
   /// Inicializa el servicio con la API key
   void initialize() {
-    _openaiApiKey = dotenv.env['OPENAI_API_KEY'] ?? '';
-    if (_openaiApiKey.isEmpty) {
-      print('⚠️ ADVERTENCIA: API key de OpenAI no encontrada en .env');
-    } else {
-      print('✅ AI Service inicializado con API key');
+    try {
+      _openaiApiKey = dotenv.env['OPENAI_API_KEY'] ?? '';
+      if (_openaiApiKey.isEmpty) {
+        print('⚠️ ADVERTENCIA: API key de OpenAI no encontrada en .env');
+      } else {
+        print('✅ AI Service inicializado con API key');
+      }
+    } catch (e) {
+      print('⚠️ Error inicializando AI Service: $e');
+      _openaiApiKey = '';
     }
   }
 

@@ -31,7 +31,13 @@ void main() async {
     
   } catch (e) {
     print('❌ Error cargando .env: $e');
-    print('⚠️ API Keys no configuradas - crea un archivo .env');
+    print('⚠️ Configurando API keys por defecto para desarrollo...');
+    
+    // Configurar API keys por defecto para desarrollo
+    dotenv.env['GEOAPIFY_API_KEY'] = '6ee71dd870374008b24c3bdb833714aa';
+    dotenv.env['OPENAI_API_KEY'] = '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';
+    
+    print('✅ API Keys configuradas por defecto');
   }
   
   runApp(

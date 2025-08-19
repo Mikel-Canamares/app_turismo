@@ -14,11 +14,16 @@ class POIService {
 
   /// Inicializa el servicio con la API key
   void initialize() {
-    _apiKey = dotenv.env['GEOAPIFY_API_KEY'] ?? '';
-    if (_apiKey.isEmpty) {
-      print('⚠️ ADVERTENCIA: API key de Geoapify no encontrada en .env');
-    } else {
-      print('✅ POI Service inicializado con API key de Geoapify');
+    try {
+      _apiKey = dotenv.env['GEOAPIFY_API_KEY'] ?? '';
+      if (_apiKey.isEmpty) {
+        print('⚠️ ADVERTENCIA: API key de Geoapify no encontrada en .env');
+      } else {
+        print('✅ POI Service inicializado con API key de Geoapify');
+      }
+    } catch (e) {
+      print('⚠️ Error inicializando POI Service: $e');
+      _apiKey = '';
     }
   }
 
